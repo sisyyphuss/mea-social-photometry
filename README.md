@@ -67,7 +67,7 @@ mea-social-photometry/
 ### 1. Installation
 
 ```bash
-git clone https://github.com/syedsaad7527/mea-social-photometry.git
+git clone https://github.com/sisyyphuss/mea-social-photometry.git
 cd mea-social-photometry
 pip install -r requirements.txt
 ```
