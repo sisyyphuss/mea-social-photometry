@@ -1,6 +1,5 @@
 """
 Preprocessing utilities for dual-channel fiber photometry.
-Author: Saad Yusuf
 """
 
 import numpy as np

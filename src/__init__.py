@@ -1,6 +1,5 @@
 """
 Bilateral Medial Amygdala (MeA) Photometry and Social Interaction Analysis
-Author: Saad Yusuf
 """
 
 from .preprocessing import butter_lowpass_filter, motion_correct_and_zscore

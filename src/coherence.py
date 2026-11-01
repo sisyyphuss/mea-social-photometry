@@ -1,6 +1,5 @@
 """
 Inter-hemispheric spectral coherence analysis between Left and Right MeA.
-Author: Saad Yusuf
 """
 
 import numpy as np

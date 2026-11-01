@@ -1,6 +1,5 @@
 """
 Cohort Analysis: Bilateral Medial Amygdala Photometry and Social Interaction
-Author: Saad Yusuf
 
 Usage:
     python run_cohort_analysis.py [--raw_zip PATH] [--tracking_dir PATH] [--output_dir PATH]
@@ -33,7 +32,6 @@ def generate_single_mouse_script(mouse_id, age_group, target_dir):
     """Generate a self-contained analysis script for an individual mouse."""
     script_content = f'''"""
 Photometry, Tracking, and Spectral Coherence Analysis for Mouse {mouse_id} ({age_group})
-Author: Saad Yusuf
 
 Usage:
     python analyze_Mouse_{mouse_id}.py

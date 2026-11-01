@@ -1,6 +1,5 @@
 """
 Single-Animal Photometry, Tracking, and Coherence Analysis
-Author: Saad Yusuf
 
 Usage:
     python analyze_mouse.py --mouse_id 303 --age_group Young

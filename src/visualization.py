@@ -1,6 +1,5 @@
 """
 Publication-ready visualization styles and figure generators.
-Author: Saad Yusuf
 """
 
 import matplotlib.pyplot as plt

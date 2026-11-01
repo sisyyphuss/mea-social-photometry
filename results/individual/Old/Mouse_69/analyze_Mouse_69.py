@@ -1,6 +1,5 @@
 """
 Photometry, Tracking, and Spectral Coherence Analysis for Mouse 69 (Old)
-Author: Saad Yusuf
 
 Usage:
     python analyze_Mouse_69.py

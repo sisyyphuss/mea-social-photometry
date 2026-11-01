@@ -1,6 +1,5 @@
 ========================================================================================
 STATISTICAL REPORT: BILATERAL MEDIAL AMYGDALA PHOTOMETRY & COHERENCE DYNAMICS IN AGING
-Author: Saad Yusuf
 ========================================================================================
 
 1. PRIMARY NEURAL ACTIVATION:

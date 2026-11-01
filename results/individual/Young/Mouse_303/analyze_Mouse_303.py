@@ -1,6 +1,5 @@
 """
 Photometry, Tracking, and Spectral Coherence Analysis for Mouse 303 (Young)
-Author: Saad Yusuf
 
 Usage:
     python analyze_Mouse_303.py

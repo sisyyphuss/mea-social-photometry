@@ -5,8 +5,6 @@
 
 Computational pipeline for dual-channel fiber photometry, 3-chamber social tracking, and inter-hemispheric spectral coherence in young ($n=8$) versus aged ($n=10$) mice.
 
-**Author:** Saad Yusuf (`syed.saad7527@gmail.com`)
-
 ---
 
 ## Key Results

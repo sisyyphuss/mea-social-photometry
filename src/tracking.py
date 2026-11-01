@@ -1,6 +1,5 @@
 """
 Behavioral trajectory tracking, chamber dwell times, and spatial heatmaps.
-Author: Saad Yusuf
 """
 
 import numpy as np

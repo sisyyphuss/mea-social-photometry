@@ -1,6 +1,5 @@
 """
 7-Pass Verification Audit: Bilateral MeA Photometry, Tracking, and Spectral Coherence
-Author: Saad Yusuf
 
 Usage:
     python verify_pipeline.py

@@ -1,6 +1,5 @@
 """
 Peri-event time histogram (PETH) extraction, baseline correction, and bout metrics.
-Author: Saad Yusuf
 """
 
 import numpy as np
