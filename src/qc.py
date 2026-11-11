@@ -43,8 +43,7 @@ def compute_optical_qc(
     z410_l = (f410_l - np.mean(f410_l)) / (np.std(f410_l) + 1e-9)
     z410_r = (f410_r - np.mean(f410_r)) / (np.std(f410_r) + 1e-9)
 
-    dt = 1.0 / 30.0
-    rel_time = np.arange(-pre_s, post_s + dt / 2.0, dt)
+    rel_time = np.linspace(-pre_s, post_s, int(round((pre_s + post_s) * 30.0)) + 1)
     iso_traces = []
     for o in onsets:
         if o - pre_s < time[0] or o + post_s > time[-1]:

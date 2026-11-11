@@ -7,29 +7,23 @@ Usage:
 
 import os
 import sys
-import io
-import json
-import zipfile
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from scipy.signal import coherence
-from scipy.stats import ttest_ind, sem
+from scipy.stats import ttest_ind, ttest_rel, sem
 from scipy.ndimage import gaussian_filter
 
-# Add repository root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.preprocessing import butter_lowpass_filter, motion_correct_and_zscore
-from src.peth import extract_bouts_from_events, slice_peth, compute_trial_metrics, calc_lateralization_index
-from src.coherence import compute_spectral_coherence_bouts
-from src.visualization import set_publication_style, COLOR_LEFT, COLOR_RIGHT, COLOR_YOUNG, COLOR_OLD
+from src.io_paths import resolve_data_paths, load_tracking_csv
+from src.visualization import set_publication_style, save_figure, COLOR_LEFT, COLOR_RIGHT, COLOR_YOUNG, COLOR_OLD
+from analyze_mouse import process_single_mouse
 
 
 def generate_single_mouse_script(mouse_id, age_group, target_dir):
-    """Generate a self-contained analysis script for an individual mouse."""
+    """Write a clean standalone launcher script inside each animal directory."""
     script_content = f'''"""
 Photometry, Tracking, and Spectral Coherence Analysis for Mouse {mouse_id} ({age_group})
 
@@ -39,304 +33,19 @@ Usage:
 
 import os
 import sys
-import io
-import json
-import zipfile
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from scipy.signal import butter, filtfilt, coherence
-from scipy.stats import linregress
-from scipy.ndimage import gaussian_filter
-from scipy.integrate import simpson
 
-MOUSE_ID = "{mouse_id}"
-AGE_GROUP = "{age_group}"
-COLOR_LEFT = "#1b9e77"
-COLOR_RIGHT = "#7570b3"
-
-
-def butter_lowpass_filter(signal, cutoff=3.0, fs=30.0, order=2):
-    nyquist = 0.5 * fs
-    b, a = butter(order, cutoff / nyquist, btype='low', analog=False)
-    return filtfilt(b, a, signal)
-
-
-def motion_correct_and_zscore(f_signal, f_reference):
-    slope, intercept, _, _, _ = linregress(f_reference, f_signal)
-    f_fitted = slope * f_reference + intercept
-    dff = (f_signal - f_fitted) / f_fitted * 100.0
-    std_val = np.std(dff)
-    z_score = (dff - np.mean(dff)) / (std_val if std_val > 1e-9 else 1.0)
-    return dff, z_score, f_fitted
-
-
-def extract_bouts_from_events(df, time):
-    events_str = df['Events'].fillna('').astype(str)
-    soc_start = time[events_str.str.contains('Social_Start', case=False, na=False)]
-    soc_end   = time[events_str.str.contains('Social_End', case=False, na=False)]
-    nonsoc_start = time[events_str.str.contains('Non-Social_Start', case=False, na=False)]
-    nonsoc_end   = time[events_str.str.contains('Non-Social_End', case=False, na=False)]
-
-    def match_durations(onsets, offsets):
-        valid_o, valid_d = [], []
-        for o in onsets:
-            later = offsets[offsets > o]
-            if len(later) > 0:
-                dur = later[0] - o
-                if 0.2 <= dur <= 60.0:
-                    valid_o.append(o)
-                    valid_d.append(dur)
-            else:
-                valid_o.append(o)
-                valid_d.append(3.0)
-        return np.array(valid_o), np.array(valid_d)
-
-    soc_on, soc_dur = match_durations(soc_start, soc_end)
-    obj_on, obj_dur = match_durations(nonsoc_start, nonsoc_end)
-    return soc_on, soc_dur, obj_on, obj_dur
-
-
-def slice_peth(time, signal, onsets, durs, pre_s=3.0, post_s=6.0, fs=30.0):
-    dt = 1.0 / fs
-    rel_time = np.arange(-pre_s, post_s + dt/2, dt)
-    if len(onsets) == 0:
-        return rel_time, np.empty((0, len(rel_time))), np.array([])
-    traces = []
-    whole_bout_means = []
-    for o, d in zip(onsets, durs):
-        t_start, t_end = o - pre_s, o + post_s
-        if t_start < time[0] or t_end > time[-1]:
-            continue
-        sample_t = o + rel_time
-        interp = np.interp(sample_t, time, signal)
-        base_val = np.mean(interp[rel_time < 0])
-        traces.append(interp - base_val)
-
-        b_mask = (time >= o) & (time <= o + d)
-        base_mask = (time >= o - pre_s) & (time < o)
-        if np.sum(b_mask) > 0 and np.sum(base_mask) > 0:
-            bout_z = np.mean(signal[b_mask]) - np.mean(signal[base_mask])
-            whole_bout_means.append(bout_z)
-        else:
-            whole_bout_means.append(0.0)
-
-    if len(traces) == 0:
-        return rel_time, np.empty((0, len(rel_time))), np.array([])
-    return rel_time, np.array(traces), np.array(whole_bout_means)
-
-
-def compute_trial_metrics(rel_time, peth_mat, win_start=0.0, win_end=4.0):
-    if len(peth_mat) == 0:
-        return np.array([]), np.array([]), np.array([])
-    mask_4s = (rel_time >= win_start) & (rel_time <= win_end)
-    t_win = rel_time[mask_4s]
-    peaks = [np.max(tr[mask_4s]) for tr in peth_mat]
-    aucs = [simpson(tr[mask_4s], x=t_win) for tr in peth_mat]
-    mask_2s = (rel_time >= 0.0) & (rel_time <= 2.0)
-    means_0_2s = [np.mean(tr[mask_2s]) for tr in peth_mat]
-    return np.array(peaks), np.array(aucs), np.array(means_0_2s)
-
-
-def calc_lateralization_index(l_val, r_val):
-    denom = np.abs(l_val) + np.abs(r_val)
-    if denom == 0 or np.isnan(denom):
-        return 0.0
-    return (l_val - r_val) / denom
-
-
-def compute_spectral_coherence_bouts(time, z_left, z_right, onsets, win_len=5.0, fs=30.0):
-    nperseg = int(fs * 2.5)
-    noverlap = nperseg // 2
-    pre_cohs, post_cohs = [], []
-    valid_bouts = []
-    for idx, o in enumerate(onsets):
-        t_pre_start = o - win_len
-        t_post_end   = o + win_len
-        if t_pre_start < time[0] or t_post_end > time[-1]:
-            continue
-        mask_pre  = (time >= t_pre_start) & (time < o)
-        mask_post = (time >= o) & (time < t_post_end)
-        sig_l_pre, sig_r_pre = z_left[mask_pre], z_right[mask_pre]
-        sig_l_post, sig_r_post = z_left[mask_post], z_right[mask_post]
-        if len(sig_l_pre) < nperseg or len(sig_l_post) < nperseg:
-            continue
-        freqs, c_pre = coherence(sig_l_pre, sig_r_pre, fs=fs, nperseg=nperseg, noverlap=noverlap)
-        _, c_post    = coherence(sig_l_post, sig_r_post, fs=fs, nperseg=nperseg, noverlap=noverlap)
-        pre_cohs.append(c_pre)
-        post_cohs.append(c_post)
-        valid_bouts.append(idx)
-    if len(pre_cohs) == 0:
-        return np.array([]), np.array([]), np.array([]), valid_bouts
-    return np.array(freqs), np.array(pre_cohs), np.array(post_cohs), valid_bouts
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
+if os.path.exists(os.path.join(REPO_ROOT, "analyze_mouse.py")):
+    sys.path.insert(0, REPO_ROOT)
+    from analyze_mouse import process_single_mouse
+else:
+    raise FileNotFoundError("Place this folder inside the mea-social-photometry repository to execute.")
 
 
 def main():
-    out_dir = os.path.dirname(os.path.abspath(__file__))
-    zip_path = os.path.expanduser("~/Downloads/Data_2.zip")
-    tracking_csv = os.path.expanduser(f"~/Downloads/results_social/results_social/individual/Social/{age_group}/{mouse_id}/synchronized_tracking_photometry.csv")
-    
-    print(f"Executing analysis for Mouse {mouse_id} ({age_group})...")
-    
-    with zipfile.ZipFile(zip_path, 'r') as z:
-        csv_in_zip = f"Data_2/Social/{age_group.lower()}/Fluorescence_{mouse_id}.csv"
-        with z.open(csv_in_zip) as f:
-            df_raw = pd.read_csv(io.StringIO(f.read().decode('utf-8', errors='ignore')), skiprows=1)
-    df_raw.columns = [c.strip() for c in df_raw.columns]
-    
-    raw_t = pd.to_numeric(df_raw['TimeStamp'], errors='coerce').values
-    time = (raw_t - raw_t[0]) / 1000.0 if np.nanmedian(np.diff(raw_t)) > 2.0 else raw_t - raw_t[0]
-    actual_fs = 1.0 / np.median(np.diff(time))
-    total_dur_min = (time[-1] - time[0]) / 60.0
-    
-    ch1_470 = butter_lowpass_filter(pd.to_numeric(df_raw['CH1-470'], errors='coerce').interpolate().values, 3.0, actual_fs)
-    ch1_410 = butter_lowpass_filter(pd.to_numeric(df_raw['CH1-410'], errors='coerce').interpolate().values, 3.0, actual_fs)
-    ch2_470 = butter_lowpass_filter(pd.to_numeric(df_raw['CH2-470'], errors='coerce').interpolate().values, 3.0, actual_fs)
-    ch2_410 = butter_lowpass_filter(pd.to_numeric(df_raw['CH2-410'], errors='coerce').interpolate().values, 3.0, actual_fs)
-    
-    ch1_dff, ch1_z, ch1_fit = motion_correct_and_zscore(ch1_470, ch1_410)
-    ch2_dff, ch2_z, ch2_fit = motion_correct_and_zscore(ch2_470, ch2_410)
-    
-    soc_on, soc_dur, obj_on, obj_dur = extract_bouts_from_events(df_raw, time)
-    fs_nominal = 30.0
-    rel_time, peth_soc_l, wb_soc_l = slice_peth(time, ch1_z, soc_on, soc_dur, 3.0, 6.0, fs_nominal)
-    _,        peth_soc_r, wb_soc_r = slice_peth(time, ch2_z, soc_on, soc_dur, 3.0, 6.0, fs_nominal)
-    _,        peth_obj_l, wb_obj_l = slice_peth(time, ch1_z, obj_on, obj_dur, 3.0, 6.0, fs_nominal)
-    _,        peth_obj_r, wb_obj_r = slice_peth(time, ch2_z, obj_on, obj_dur, 3.0, 6.0, fs_nominal)
-    
-    soc_pks_l, soc_aucs_l, soc_m02_l = compute_trial_metrics(rel_time, peth_soc_l)
-    soc_pks_r, soc_aucs_r, soc_m02_r = compute_trial_metrics(rel_time, peth_soc_r)
-    obj_pks_l, obj_aucs_l, obj_m02_l = compute_trial_metrics(rel_time, peth_obj_l)
-    obj_pks_r, obj_aucs_r, obj_m02_r = compute_trial_metrics(rel_time, peth_obj_r)
-    
-    freqs_soc, coh_soc_pre, coh_soc_post, v_soc_idx = compute_spectral_coherence_bouts(time, ch1_z, ch2_z, soc_on, 5.0, actual_fs)
-    
-    m_full = (freqs_soc >= 0.1) & (freqs_soc <= 3.0) if len(freqs_soc) > 0 else []
-    m_b1   = (freqs_soc >= 0.1) & (freqs_soc <= 0.5) if len(freqs_soc) > 0 else []
-    m_b2   = (freqs_soc >= 0.5) & (freqs_soc <= 1.5) if len(freqs_soc) > 0 else []
-    m_b3   = (freqs_soc >= 1.5) & (freqs_soc <= 3.0) if len(freqs_soc) > 0 else []
-    m_std  = (freqs_soc >= 0.8) & (freqs_soc <= 1.6) if len(freqs_soc) > 0 else []
-    
-    soc_c_pre_full = [np.mean(c[m_full]) for c in coh_soc_pre] if len(coh_soc_pre) > 0 else []
-    soc_c_post_full = [np.mean(c[m_full]) for c in coh_soc_post] if len(coh_soc_post) > 0 else []
-    soc_c_b1_del   = [np.mean(post[m_b1]) - np.mean(pre[m_b1]) for pre, post in zip(coh_soc_pre, coh_soc_post)] if len(coh_soc_pre) > 0 else []
-    soc_c_b2_del   = [np.mean(post[m_b2]) - np.mean(pre[m_b2]) for pre, post in zip(coh_soc_pre, coh_soc_post)] if len(coh_soc_pre) > 0 else []
-    soc_c_b3_del   = [np.mean(post[m_b3]) - np.mean(pre[m_b3]) for pre, post in zip(coh_soc_pre, coh_soc_post)] if len(coh_soc_pre) > 0 else []
-    soc_c_std_pre  = [np.mean(c[m_std]) for c in coh_soc_pre] if len(coh_soc_pre) > 0 else []
-    soc_c_std_post = [np.mean(c[m_std]) for c in coh_soc_post] if len(coh_soc_post) > 0 else []
-    
-    mouse_trials = []
-    for k in range(len(soc_aucs_l)):
-        li = calc_lateralization_index(soc_aucs_l[k], soc_aucs_r[k])
-        c_full_pre  = round(float(soc_c_pre_full[k]), 3) if k < len(soc_c_pre_full) else np.nan
-        c_full_post = round(float(soc_c_post_full[k]), 3) if k < len(soc_c_post_full) else np.nan
-        c_full_del  = round(c_full_post - c_full_pre, 3) if (not np.isnan(c_full_pre) and not np.isnan(c_full_post)) else np.nan
-        c_b1_del    = round(float(soc_c_b1_del[k]), 3) if k < len(soc_c_b1_del) else np.nan
-        c_b2_del    = round(float(soc_c_b2_del[k]), 3) if k < len(soc_c_b2_del) else np.nan
-        c_b3_del    = round(float(soc_c_b3_del[k]), 3) if k < len(soc_c_b3_del) else np.nan
-        c_pre  = round(float(soc_c_std_pre[k]), 3) if k < len(soc_c_std_pre) else np.nan
-        c_post = round(float(soc_c_std_post[k]), 3) if k < len(soc_c_std_post) else np.nan
-        c_del  = round(c_post - c_pre, 3) if (not np.isnan(c_pre) and not np.isnan(c_post)) else np.nan
-        m02_bilat = round(float((soc_m02_l[k] + soc_m02_r[k]) / 2.0), 3)
-        wb_bilat  = round(float((wb_soc_l[k] + wb_soc_r[k]) / 2.0), 3)
-        
-        mouse_trials.append({{
-            'Mouse_ID': MOUSE_ID, 'Age_Group': AGE_GROUP, 'Stimulus': 'Social',
-            'Bout': k+1, 'Duration_s': round(soc_dur[k], 2) if k < len(soc_dur) else np.nan,
-            'Left_MeA_AUC': round(soc_aucs_l[k], 3), 'Right_MeA_AUC': round(soc_aucs_r[k], 3),
-            'Left_MeA_Peak_Z': round(soc_pks_l[k], 3), 'Right_MeA_Peak_Z': round(soc_pks_r[k], 3),
-            'Left_MeA_Whole_Bout_Mean_Z': round(wb_soc_l[k], 3), 'Right_MeA_Whole_Bout_Mean_Z': round(wb_soc_r[k], 3),
-            'Whole_Bout_Mean_Z_Bilateral': wb_bilat,
-            'Left_MeA_Mean_Z_0_2s': round(soc_m02_l[k], 3), 'Right_MeA_Mean_Z_0_2s': round(soc_m02_r[k], 3),
-            'Mean_Z_0_2s_Bilateral': m02_bilat,
-            'Lateralization_Index': round(li, 3),
-            'Coherence_Full_0_1_3_0Hz_Base': c_full_pre, 'Coherence_Full_0_1_3_0Hz_Social': c_full_post, 'Coherence_Full_0_1_3_0Hz_Delta': c_full_del,
-            'Coherence_0_1_0_5Hz_Delta': c_b1_del, 'Coherence_0_5_1_5Hz_Delta': c_b2_del, 'Coherence_1_5_3_0Hz_Delta': c_b3_del,
-            'Baseline_Coherence': c_pre, 'Interaction_Coherence': c_post, 'Coherence_Delta': c_del
-        }})
-        
-    for k in range(len(obj_aucs_l)):
-        li = calc_lateralization_index(obj_aucs_l[k], obj_aucs_r[k])
-        m02_bilat = round(float((obj_m02_l[k] + obj_m02_r[k]) / 2.0), 3)
-        wb_bilat  = round(float((wb_obj_l[k] + wb_obj_r[k]) / 2.0), 3)
-        mouse_trials.append({{
-            'Mouse_ID': MOUSE_ID, 'Age_Group': AGE_GROUP, 'Stimulus': 'NonSocial',
-            'Bout': k+1, 'Duration_s': round(obj_dur[k], 2) if k < len(obj_dur) else np.nan,
-            'Left_MeA_AUC': round(obj_aucs_l[k], 3), 'Right_MeA_AUC': round(obj_aucs_r[k], 3),
-            'Left_MeA_Peak_Z': round(obj_pks_l[k], 3), 'Right_MeA_Peak_Z': round(obj_pks_r[k], 3),
-            'Left_MeA_Whole_Bout_Mean_Z': round(wb_obj_l[k], 3), 'Right_MeA_Whole_Bout_Mean_Z': round(wb_obj_r[k], 3),
-            'Whole_Bout_Mean_Z_Bilateral': wb_bilat,
-            'Left_MeA_Mean_Z_0_2s': round(obj_m02_l[k], 3), 'Right_MeA_Mean_Z_0_2s': round(obj_m02_r[k], 3),
-            'Mean_Z_0_2s_Bilateral': m02_bilat,
-            'Lateralization_Index': round(li, 3),
-            'Coherence_Full_0_1_3_0Hz_Base': np.nan, 'Coherence_Full_0_1_3_0Hz_Social': np.nan, 'Coherence_Full_0_1_3_0Hz_Delta': np.nan,
-            'Coherence_0_1_0_5Hz_Delta': np.nan, 'Coherence_0_5_1_5Hz_Delta': np.nan, 'Coherence_1_5_3_0Hz_Delta': np.nan,
-            'Baseline_Coherence': np.nan, 'Interaction_Coherence': np.nan, 'Coherence_Delta': np.nan
-        }})
-        
-    pd.DataFrame(mouse_trials).to_csv(os.path.join(out_dir, "trial_metrics.csv"), index=False)
-    
-    df_tr = pd.read_csv(tracking_csv)
-    x_pts, y_pts = df_tr['x_px'].dropna().values, df_tr['y_px'].dropna().values
-    dist_px = float(np.sum(np.sqrt(np.diff(x_pts)**2 + np.diff(y_pts)**2)))
-    stim = df_tr['compartment_stimulus'].values
-    fps_tr = 60.0
-    t_soc = float(np.sum(stim == 'Novel Mouse') / fps_tr)
-    t_obj = float(np.sum(stim == 'Object') / fps_tr)
-    spi_beh = (t_soc - t_obj) / (t_soc + t_obj + 1e-9)
-    
-    m_summary = {{
-        'Mouse_ID': str(MOUSE_ID),
-        'Age_Group': AGE_GROUP,
-        'Recording_Duration_Min': round(total_dur_min, 1),
-        'Social_Bout_Count': len(soc_on),
-        'Analyzed_Social_Bouts_in_PETH': len(soc_aucs_l),
-        'Social_Total_Time_s': round(float(np.sum(soc_dur)), 1),
-        'NonSocial_Bout_Count': len(obj_on),
-        'Analyzed_NonSocial_Bouts_in_PETH': len(obj_aucs_l),
-        'NonSocial_Total_Time_s': round(float(np.sum(obj_dur)), 1),
-        'Social_AUC_Left': round(float(np.mean(soc_aucs_l)), 3),
-        'Social_AUC_Right': round(float(np.mean(soc_aucs_r)), 3),
-        'Social_Peak_Left': round(float(np.mean(soc_pks_l)), 3),
-        'Social_Peak_Right': round(float(np.mean(soc_pks_r)), 3),
-        'Social_Whole_Bout_Mean_Z_Left': round(float(np.mean(wb_soc_l)), 3),
-        'Social_Whole_Bout_Mean_Z_Right': round(float(np.mean(wb_soc_r)), 3),
-        'Social_Whole_Bout_Mean_Z_Bilateral': round(float((np.mean(wb_soc_l) + np.mean(wb_soc_r)) / 2.0), 3),
-        'Social_Mean_Z_0_2s_Left': round(float(np.mean(soc_m02_l)), 3),
-        'Social_Mean_Z_0_2s_Right': round(float(np.mean(soc_m02_r)), 3),
-        'Social_Mean_Z_0_2s_Bilateral': round(float((np.mean(soc_m02_l) + np.mean(soc_m02_r)) / 2.0), 3),
-        'Social_Lateralization_Index': round(calc_lateralization_index(np.mean(soc_aucs_l), np.mean(soc_aucs_r)), 3),
-        'NonSocial_AUC_Left': round(float(np.mean(obj_aucs_l)), 3),
-        'NonSocial_AUC_Right': round(float(np.mean(obj_aucs_r)), 3),
-        'NonSocial_Peak_Left': round(float(np.mean(obj_pks_l)), 3),
-        'NonSocial_Peak_Right': round(float(np.mean(obj_pks_r)), 3),
-        'NonSocial_Whole_Bout_Mean_Z_Left': round(float(np.mean(wb_obj_l)), 3),
-        'NonSocial_Whole_Bout_Mean_Z_Right': round(float(np.mean(wb_obj_r)), 3),
-        'NonSocial_Whole_Bout_Mean_Z_Bilateral': round(float((np.mean(wb_obj_l) + np.mean(wb_obj_r)) / 2.0), 3),
-        'NonSocial_Mean_Z_0_2s_Left': round(float(np.mean(obj_m02_l)), 3),
-        'NonSocial_Mean_Z_0_2s_Right': round(float(np.mean(obj_m02_r)), 3),
-        'NonSocial_Mean_Z_0_2s_Bilateral': round(float((np.mean(obj_m02_l) + np.mean(obj_m02_r)) / 2.0), 3),
-        'NonSocial_Lateralization_Index': round(calc_lateralization_index(np.mean(obj_aucs_l), np.mean(obj_aucs_r)), 3),
-        'Coherence_Full_Spectrum_0_1_3_0Hz_Base': round(float(np.nanmean(soc_c_pre_full)), 3) if len(soc_c_pre_full) > 0 else np.nan,
-        'Coherence_Full_Spectrum_0_1_3_0Hz_Social': round(float(np.nanmean(soc_c_post_full)), 3) if len(soc_c_post_full) > 0 else np.nan,
-        'Coherence_Full_Spectrum_0_1_3_0Hz_Delta': round(float(np.nanmean(soc_c_post_full) - np.nanmean(soc_c_pre_full)), 3) if len(soc_c_pre_full) > 0 else np.nan,
-        'Coherence_0_1_0_5Hz_Delta': round(float(np.nanmean(soc_c_b1_del)), 3) if len(soc_c_b1_del) > 0 else np.nan,
-        'Coherence_0_5_1_5Hz_Delta': round(float(np.nanmean(soc_c_b2_del)), 3) if len(soc_c_b2_del) > 0 else np.nan,
-        'Coherence_1_5_3_0Hz_Delta': round(float(np.nanmean(soc_c_b3_del)), 3) if len(soc_c_b3_del) > 0 else np.nan,
-        'Mean_Baseline_Coherence_0_8_1_6Hz': round(float(np.nanmean(soc_c_std_pre)), 3) if len(soc_c_std_pre) > 0 else np.nan,
-        'Mean_Social_Coherence_0_8_1_6Hz': round(float(np.nanmean(soc_c_std_post)), 3) if len(soc_c_std_post) > 0 else np.nan,
-        'Mean_Coherence_Delta': round(float(np.nanmean(soc_c_std_post) - np.nanmean(soc_c_std_pre)), 3) if len(soc_c_std_pre) > 0 else np.nan,
-        'Locomotor_Distance_px': round(dist_px, 1),
-        'Time_in_Social_Chamber_s': round(t_soc, 1),
-        'Time_in_Object_Chamber_s': round(t_obj, 1),
-        'Social_Preference_Index': round(spi_beh, 3)
-    }}
-    
-    with open(os.path.join(out_dir, "mouse_summary.json"), "w") as jf:
-        json.dump(m_summary, jf, indent=2)
-        
-    print(f"Analysis complete for Mouse {mouse_id}.")
+    process_single_mouse(mouse_id="{mouse_id}", age_group="{age_group}", output_dir=HERE, generate_plots=True)
+    print("Analysis complete for Mouse {mouse_id} ({age_group}).")
 
 
 if __name__ == "__main__":
@@ -348,239 +57,462 @@ if __name__ == "__main__":
 
 def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
     set_publication_style()
+    rng = np.random.default_rng(42)
 
+    repo_root = os.path.dirname(os.path.abspath(__file__))
     if output_dir is None:
-        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-    if raw_zip is None:
-        raw_zip = os.path.expanduser("~/Downloads/Data_2.zip")
-    if tracking_dir is None:
-        tracking_dir = os.path.expanduser("~/Downloads/results_social/results_social")
+        output_dir = os.path.join(repo_root, "results")
 
-    print(f"Starting cohort analysis pipeline...")
-    print(f"Photometry raw zip: {raw_zip}")
+    raw_source, tracking_dir = resolve_data_paths(raw_zip, tracking_dir, repo_root=repo_root)
+
+    print("Running cohort photometry, tracking, and coherence pipeline...")
+    print(f"Photometry source:  {raw_source}")
     print(f"Tracking directory: {tracking_dir}")
     print(f"Output directory:   {output_dir}")
 
-    os.makedirs(os.path.join(output_dir, "tables"), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, "figures"), exist_ok=True)
+    tables_dir = os.path.join(output_dir, "tables")
+    figs_dir = os.path.join(output_dir, "figures")
+    os.makedirs(tables_dir, exist_ok=True)
+    os.makedirs(figs_dir, exist_ok=True)
 
-    young_ids = ['303', '305', '307', '308', '309', '311', '326', '331']
-    old_ids   = ['315', '316', '317', '318', '319', '323', '50', '56', '66', '69']
+    young_ids = ["303", "305", "307", "308", "309", "311", "326", "331"]
+    old_ids = ["315", "316", "317", "318", "319", "323", "50", "56", "66", "69"]
 
     all_mouse_summaries = []
     all_trial_records = []
 
     cohort_peths = {
-        'Young': {'Social': {'L': [], 'R': []}, 'NonSocial': {'L': [], 'R': []}},
-        'Old':   {'Social': {'L': [], 'R': []}, 'NonSocial': {'L': [], 'R': []}}
+        "Young": {"Social": {"L": [], "R": []}, "NonSocial": {"L": [], "R": []}},
+        "Old": {"Social": {"L": [], "R": []}, "NonSocial": {"L": [], "R": []}},
     }
-    cohort_spatial_heatmaps = {'Young': [], 'Old': []}
+    cohort_spatial_heatmaps = {"Young": [], "Old": []}
     cohort_coherence = {
-        'Young': {
-            'freqs': None, 'spectrum_pre': [], 'spectrum_post': [],
-            'pre_full': [], 'post_full': [], 'delta_full': [],
-            'delta_b1': [], 'delta_b2': [], 'delta_b3': [],
-            'pre_std': [], 'post_std': [], 'delta_std': []
-        },
-        'Old': {
-            'freqs': None, 'spectrum_pre': [], 'spectrum_post': [],
-            'pre_full': [], 'post_full': [], 'delta_full': [],
-            'delta_b1': [], 'delta_b2': [], 'delta_b3': [],
-            'pre_std': [], 'post_std': [], 'delta_std': []
-        }
+        "Young": {"freqs": None, "spectrum_pre": [], "spectrum_post": [], "post_full": [], "delta_full": [], "delta_std": []},
+        "Old": {"freqs": None, "spectrum_pre": [], "spectrum_post": [], "post_full": [], "delta_full": [], "delta_std": []},
     }
+    rel_time = None
 
-    with zipfile.ZipFile(raw_zip, 'r') as z:
-        for age_group, mouse_list in [('Young', young_ids), ('Old', old_ids)]:
-            folder_age = age_group.lower()
+    for age_group, mouse_list in [("Young", young_ids), ("Old", old_ids)]:
+        for mouse_id in mouse_list:
+            print(f"Processing Mouse {mouse_id} ({age_group})...")
+            target_indiv_dir = os.path.join(output_dir, "individual", age_group, f"Mouse_{mouse_id}")
+            res = process_single_mouse(
+                mouse_id=mouse_id,
+                age_group=age_group,
+                raw_source=raw_source,
+                tracking_dir=tracking_dir,
+                output_dir=target_indiv_dir,
+                generate_plots=True,
+            )
+            generate_single_mouse_script(mouse_id, age_group, target_indiv_dir)
 
-            for mouse_id in mouse_list:
-                print(f"Processing Mouse {mouse_id} ({age_group})...")
-                target_indiv_dir = os.path.join(output_dir, "individual", age_group, f"Mouse_{mouse_id}")
-                os.makedirs(target_indiv_dir, exist_ok=True)
+            all_mouse_summaries.append(res["summary"])
+            all_trial_records.extend(res["trials"])
+            rel_time = res["rel_time"]
 
-                csv_path_in_zip = f"Data_2/Social/{folder_age}/Fluorescence_{mouse_id}.csv"
-                with z.open(csv_path_in_zip) as f:
-                    content = f.read().decode('utf-8', errors='ignore')
-                    df_raw = pd.read_csv(io.StringIO(content), skiprows=1)
-                df_raw.columns = [c.strip() for c in df_raw.columns]
+            if len(res["peth_soc_l"]) > 0:
+                cohort_peths[age_group]["Social"]["L"].append(np.mean(res["peth_soc_l"], axis=0))
+                cohort_peths[age_group]["Social"]["R"].append(np.mean(res["peth_soc_r"], axis=0))
+            if len(res["peth_obj_l"]) > 0:
+                cohort_peths[age_group]["NonSocial"]["L"].append(np.mean(res["peth_obj_l"], axis=0))
+                cohort_peths[age_group]["NonSocial"]["R"].append(np.mean(res["peth_obj_r"], axis=0))
 
-                raw_t = pd.to_numeric(df_raw['TimeStamp'], errors='coerce').values
-                time = (raw_t - raw_t[0]) / 1000.0 if np.nanmedian(np.diff(raw_t)) > 2.0 else raw_t - raw_t[0]
-                actual_fs = 1.0 / np.median(np.diff(time))
-                total_dur_min = (time[-1] - time[0]) / 60.0
+            cohort_spatial_heatmaps[age_group].append(res["h_norm"])
 
-                ch1_470 = butter_lowpass_filter(pd.to_numeric(df_raw['CH1-470'], errors='coerce').interpolate().values, 3.0, actual_fs)
-                ch1_410 = butter_lowpass_filter(pd.to_numeric(df_raw['CH1-410'], errors='coerce').interpolate().values, 3.0, actual_fs)
-                ch2_470 = butter_lowpass_filter(pd.to_numeric(df_raw['CH2-470'], errors='coerce').interpolate().values, 3.0, actual_fs)
-                ch2_410 = butter_lowpass_filter(pd.to_numeric(df_raw['CH2-410'], errors='coerce').interpolate().values, 3.0, actual_fs)
-
-                ch1_dff, ch1_z, ch1_fit = motion_correct_and_zscore(ch1_470, ch1_410)
-                ch2_dff, ch2_z, ch2_fit = motion_correct_and_zscore(ch2_470, ch2_410)
-
-                soc_on, soc_dur, obj_on, obj_dur = extract_bouts_from_events(df_raw, time)
-                fs_nominal = 30.0
-                rel_time, peth_soc_l, wb_soc_l = slice_peth(time, ch1_z, soc_on, soc_dur, 3.0, 6.0, fs_nominal)
-                _,        peth_soc_r, wb_soc_r = slice_peth(time, ch2_z, soc_on, soc_dur, 3.0, 6.0, fs_nominal)
-                _,        peth_obj_l, wb_obj_l = slice_peth(time, ch1_z, obj_on, obj_dur, 3.0, 6.0, fs_nominal)
-                _,        peth_obj_r, wb_obj_r = slice_peth(time, ch2_z, obj_on, obj_dur, 3.0, 6.0, fs_nominal)
-
-                soc_pks_l, soc_aucs_l, soc_m02_l = compute_trial_metrics(rel_time, peth_soc_l)
-                soc_pks_r, soc_aucs_r, soc_m02_r = compute_trial_metrics(rel_time, peth_soc_r)
-                obj_pks_l, obj_aucs_l, obj_m02_l = compute_trial_metrics(rel_time, peth_obj_l)
-                obj_pks_r, obj_aucs_r, obj_m02_r = compute_trial_metrics(rel_time, peth_obj_r)
-
-                freqs_soc, coh_soc_pre, coh_soc_post, v_soc_idx = compute_spectral_coherence_bouts(
-                    time, ch1_z, ch2_z, soc_on, win_len=5.0, fs=actual_fs
-                )
-
-                mask_full = (freqs_soc >= 0.1) & (freqs_soc <= 3.0) if len(freqs_soc) > 0 else []
-                mask_b1   = (freqs_soc >= 0.1) & (freqs_soc <= 0.5) if len(freqs_soc) > 0 else []
-                mask_b2   = (freqs_soc >= 0.5) & (freqs_soc <= 1.5) if len(freqs_soc) > 0 else []
-                mask_b3   = (freqs_soc >= 1.5) & (freqs_soc <= 3.0) if len(freqs_soc) > 0 else []
-                mask_std  = (freqs_soc >= 0.8) & (freqs_soc <= 1.6) if len(freqs_soc) > 0 else []
-
-                soc_c_pre_full  = [np.mean(c[mask_full]) for c in coh_soc_pre] if len(coh_soc_pre) > 0 else []
-                soc_c_post_full = [np.mean(c[mask_full]) for c in coh_soc_post] if len(coh_soc_post) > 0 else []
-                soc_c_b1_del    = [np.mean(post[mask_b1]) - np.mean(pre[mask_b1]) for pre, post in zip(coh_soc_pre, coh_soc_post)] if len(coh_soc_pre) > 0 else []
-                soc_c_b2_del    = [np.mean(post[mask_b2]) - np.mean(pre[mask_b2]) for pre, post in zip(coh_soc_pre, coh_soc_post)] if len(coh_soc_pre) > 0 else []
-                soc_c_b3_del    = [np.mean(post[mask_b3]) - np.mean(pre[mask_b3]) for pre, post in zip(coh_soc_pre, coh_soc_post)] if len(coh_soc_pre) > 0 else []
-                soc_c_std_pre   = [np.mean(c[mask_std]) for c in coh_soc_pre] if len(coh_soc_pre) > 0 else []
-                soc_c_std_post  = [np.mean(c[mask_std]) for c in coh_soc_post] if len(coh_soc_post) > 0 else []
-
-                mouse_trials = []
-                for k in range(len(soc_aucs_l)):
-                    li = calc_lateralization_index(soc_aucs_l[k], soc_aucs_r[k])
-                    c_full_pre  = round(float(soc_c_pre_full[k]), 3) if k < len(soc_c_pre_full) else np.nan
-                    c_full_post = round(float(soc_c_post_full[k]), 3) if k < len(soc_c_post_full) else np.nan
-                    c_full_del  = round(c_full_post - c_full_pre, 3) if (not np.isnan(c_full_pre) and not np.isnan(c_full_post)) else np.nan
-                    c_b1_del    = round(float(soc_c_b1_del[k]), 3) if k < len(soc_c_b1_del) else np.nan
-                    c_b2_del    = round(float(soc_c_b2_del[k]), 3) if k < len(soc_c_b2_del) else np.nan
-                    c_b3_del    = round(float(soc_c_b3_del[k]), 3) if k < len(soc_c_b3_del) else np.nan
-                    c_pre  = round(float(soc_c_std_pre[k]), 3) if k < len(soc_c_std_pre) else np.nan
-                    c_post = round(float(soc_c_std_post[k]), 3) if k < len(soc_c_std_post) else np.nan
-                    c_del  = round(c_post - c_pre, 3) if (not np.isnan(c_pre) and not np.isnan(c_post)) else np.nan
-
-                    m02_bilat = round(float((soc_m02_l[k] + soc_m02_r[k]) / 2.0), 3)
-                    wb_bilat  = round(float((wb_soc_l[k] + wb_soc_r[k]) / 2.0), 3)
-
-                    rec = {
-                        'Mouse_ID': mouse_id, 'Age_Group': age_group, 'Stimulus': 'Social',
-                        'Bout': k+1, 'Duration_s': round(soc_dur[k], 2) if k < len(soc_dur) else np.nan,
-                        'Left_MeA_AUC': round(soc_aucs_l[k], 3), 'Right_MeA_AUC': round(soc_aucs_r[k], 3),
-                        'Left_MeA_Peak_Z': round(soc_pks_l[k], 3), 'Right_MeA_Peak_Z': round(soc_pks_r[k], 3),
-                        'Left_MeA_Whole_Bout_Mean_Z': round(wb_soc_l[k], 3), 'Right_MeA_Whole_Bout_Mean_Z': round(wb_soc_r[k], 3),
-                        'Whole_Bout_Mean_Z_Bilateral': wb_bilat,
-                        'Left_MeA_Mean_Z_0_2s': round(soc_m02_l[k], 3), 'Right_MeA_Mean_Z_0_2s': round(soc_m02_r[k], 3),
-                        'Mean_Z_0_2s_Bilateral': m02_bilat,
-                        'Lateralization_Index': round(li, 3),
-                        'Coherence_Full_0_1_3_0Hz_Base': c_full_pre, 'Coherence_Full_0_1_3_0Hz_Social': c_full_post, 'Coherence_Full_0_1_3_0Hz_Delta': c_full_del,
-                        'Coherence_0_1_0_5Hz_Delta': c_b1_del, 'Coherence_0_5_1_5Hz_Delta': c_b2_del, 'Coherence_1_5_3_0Hz_Delta': c_b3_del,
-                        'Baseline_Coherence': c_pre, 'Interaction_Coherence': c_post, 'Coherence_Delta': c_del
-                    }
-                    mouse_trials.append(rec)
-                    all_trial_records.append(rec)
-
-                for k in range(len(obj_aucs_l)):
-                    li = calc_lateralization_index(obj_aucs_l[k], obj_aucs_r[k])
-                    m02_bilat = round(float((obj_m02_l[k] + obj_m02_r[k]) / 2.0), 3)
-                    wb_bilat  = round(float((wb_obj_l[k] + wb_obj_r[k]) / 2.0), 3)
-                    rec = {
-                        'Mouse_ID': mouse_id, 'Age_Group': age_group, 'Stimulus': 'NonSocial',
-                        'Bout': k+1, 'Duration_s': round(obj_dur[k], 2) if k < len(obj_dur) else np.nan,
-                        'Left_MeA_AUC': round(obj_aucs_l[k], 3), 'Right_MeA_AUC': round(obj_aucs_r[k], 3),
-                        'Left_MeA_Peak_Z': round(obj_pks_l[k], 3), 'Right_MeA_Peak_Z': round(obj_pks_r[k], 3),
-                        'Left_MeA_Whole_Bout_Mean_Z': round(wb_obj_l[k], 3), 'Right_MeA_Whole_Bout_Mean_Z': round(wb_obj_r[k], 3),
-                        'Whole_Bout_Mean_Z_Bilateral': wb_bilat,
-                        'Left_MeA_Mean_Z_0_2s': round(obj_m02_l[k], 3), 'Right_MeA_Mean_Z_0_2s': round(obj_m02_r[k], 3),
-                        'Mean_Z_0_2s_Bilateral': m02_bilat,
-                        'Lateralization_Index': round(li, 3),
-                        'Coherence_Full_0_1_3_0Hz_Base': np.nan, 'Coherence_Full_0_1_3_0Hz_Social': np.nan, 'Coherence_Full_0_1_3_0Hz_Delta': np.nan,
-                        'Coherence_0_1_0_5Hz_Delta': np.nan, 'Coherence_0_5_1_5Hz_Delta': np.nan, 'Coherence_1_5_3_0Hz_Delta': np.nan,
-                        'Baseline_Coherence': np.nan, 'Interaction_Coherence': np.nan, 'Coherence_Delta': np.nan
-                    }
-                    mouse_trials.append(rec)
-                    all_trial_records.append(rec)
-
-                pd.DataFrame(mouse_trials).to_csv(os.path.join(target_indiv_dir, "trial_metrics.csv"), index=False)
-
-                # Tracking integration
-                tracking_csv = os.path.join(tracking_dir, "individual", "Social", age_group, mouse_id, "synchronized_tracking_photometry.csv")
-                df_tr = pd.read_csv(tracking_csv)
-                x_pts, y_pts = df_tr['x_px'].dropna().values, df_tr['y_px'].dropna().values
-                dist_px = float(np.sum(np.sqrt(np.diff(x_pts)**2 + np.diff(y_pts)**2)))
-                stim = df_tr['compartment_stimulus'].values
-                fps_tr = 60.0
-                t_soc = float(np.sum(stim == 'Novel Mouse') / fps_tr)
-                t_obj = float(np.sum(stim == 'Object') / fps_tr)
-                spi_beh = (t_soc - t_obj) / (t_soc + t_obj + 1e-9)
-
-                m_summary = {
-                    'Mouse_ID': str(mouse_id),
-                    'Age_Group': age_group,
-                    'Recording_Duration_Min': round(total_dur_min, 1),
-                    'Social_Bout_Count': len(soc_on),
-                    'Analyzed_Social_Bouts_in_PETH': len(soc_aucs_l),
-                    'Social_Total_Time_s': round(float(np.sum(soc_dur)), 1),
-                    'NonSocial_Bout_Count': len(obj_on),
-                    'Analyzed_NonSocial_Bouts_in_PETH': len(obj_aucs_l),
-                    'NonSocial_Total_Time_s': round(float(np.sum(obj_dur)), 1),
-                    'Social_AUC_Left': round(float(np.mean(soc_aucs_l)), 3),
-                    'Social_AUC_Right': round(float(np.mean(soc_aucs_r)), 3),
-                    'Social_Peak_Left': round(float(np.mean(soc_pks_l)), 3),
-                    'Social_Peak_Right': round(float(np.mean(soc_pks_r)), 3),
-                    'Social_Whole_Bout_Mean_Z_Left': round(float(np.mean(wb_soc_l)), 3),
-                    'Social_Whole_Bout_Mean_Z_Right': round(float(np.mean(wb_soc_r)), 3),
-                    'Social_Whole_Bout_Mean_Z_Bilateral': round(float((np.mean(wb_soc_l) + np.mean(wb_soc_r)) / 2.0), 3),
-                    'Social_Mean_Z_0_2s_Left': round(float(np.mean(soc_m02_l)), 3),
-                    'Social_Mean_Z_0_2s_Right': round(float(np.mean(soc_m02_r)), 3),
-                    'Social_Mean_Z_0_2s_Bilateral': round(float((np.mean(soc_m02_l) + np.mean(soc_m02_r)) / 2.0), 3),
-                    'Social_Lateralization_Index': round(calc_lateralization_index(np.mean(soc_aucs_l), np.mean(soc_aucs_r)), 3),
-                    'NonSocial_AUC_Left': round(float(np.mean(obj_aucs_l)), 3),
-                    'NonSocial_AUC_Right': round(float(np.mean(obj_aucs_r)), 3),
-                    'NonSocial_Peak_Left': round(float(np.mean(obj_pks_l)), 3),
-                    'NonSocial_Peak_Right': round(float(np.mean(obj_pks_r)), 3),
-                    'NonSocial_Whole_Bout_Mean_Z_Left': round(float(np.mean(wb_obj_l)), 3),
-                    'NonSocial_Whole_Bout_Mean_Z_Right': round(float(np.mean(wb_obj_r)), 3),
-                    'NonSocial_Whole_Bout_Mean_Z_Bilateral': round(float((np.mean(wb_obj_l) + np.mean(wb_obj_r)) / 2.0), 3),
-                    'NonSocial_Mean_Z_0_2s_Left': round(float(np.mean(obj_m02_l)), 3),
-                    'NonSocial_Mean_Z_0_2s_Right': round(float(np.mean(obj_m02_r)), 3),
-                    'NonSocial_Mean_Z_0_2s_Bilateral': round(float((np.mean(obj_m02_l) + np.mean(obj_m02_r)) / 2.0), 3),
-                    'NonSocial_Lateralization_Index': round(calc_lateralization_index(np.mean(obj_aucs_l), np.mean(obj_aucs_r)), 3),
-                    'Coherence_Full_Spectrum_0_1_3_0Hz_Base': round(float(np.nanmean(soc_c_pre_full)), 3) if len(soc_c_pre_full) > 0 else np.nan,
-                    'Coherence_Full_Spectrum_0_1_3_0Hz_Social': round(float(np.nanmean(soc_c_post_full)), 3) if len(soc_c_post_full) > 0 else np.nan,
-                    'Coherence_Full_Spectrum_0_1_3_0Hz_Delta': round(float(np.nanmean(soc_c_post_full) - np.nanmean(soc_c_pre_full)), 3) if len(soc_c_pre_full) > 0 else np.nan,
-                    'Coherence_0_1_0_5Hz_Delta': round(float(np.nanmean(soc_c_b1_del)), 3) if len(soc_c_b1_del) > 0 else np.nan,
-                    'Coherence_0_5_1_5Hz_Delta': round(float(np.nanmean(soc_c_b2_del)), 3) if len(soc_c_b2_del) > 0 else np.nan,
-                    'Coherence_1_5_3_0Hz_Delta': round(float(np.nanmean(soc_c_b3_del)), 3) if len(soc_c_b3_del) > 0 else np.nan,
-                    'Mean_Baseline_Coherence_0_8_1_6Hz': round(float(np.nanmean(soc_c_std_pre)), 3) if len(soc_c_std_pre) > 0 else np.nan,
-                    'Mean_Social_Coherence_0_8_1_6Hz': round(float(np.nanmean(soc_c_std_post)), 3) if len(soc_c_std_post) > 0 else np.nan,
-                    'Mean_Coherence_Delta': round(float(np.nanmean(soc_c_std_post) - np.nanmean(soc_c_std_pre)), 3) if len(soc_c_std_pre) > 0 else np.nan,
-                    'Locomotor_Distance_px': round(dist_px, 1),
-                    'Time_in_Social_Chamber_s': round(t_soc, 1),
-                    'Time_in_Object_Chamber_s': round(t_obj, 1),
-                    'Social_Preference_Index': round(spi_beh, 3)
-                }
-                all_mouse_summaries.append(m_summary)
-
-                with open(os.path.join(target_indiv_dir, "mouse_summary.json"), "w") as jf:
-                    json.dump(m_summary, jf, indent=2)
-
-                generate_single_mouse_script(mouse_id, age_group, target_indiv_dir)
+            if len(res["coh_soc_pre"]) > 0:
+                if cohort_coherence[age_group]["freqs"] is None:
+                    cohort_coherence[age_group]["freqs"] = res["freqs_soc"]
+                cohort_coherence[age_group]["spectrum_pre"].append(np.mean(res["coh_soc_pre"], axis=0))
+                cohort_coherence[age_group]["spectrum_post"].append(np.mean(res["coh_soc_post"], axis=0))
+                cohort_coherence[age_group]["post_full"].append(res["m_c_full_post"])
+                cohort_coherence[age_group]["delta_full"].append(res["m_c_full_del"])
+                cohort_coherence[age_group]["delta_std"].append(res["m_coh_del"])
 
     df_all_summaries = pd.DataFrame(all_mouse_summaries)
     df_all_trials = pd.DataFrame(all_trial_records)
 
-    df_all_summaries.to_csv(os.path.join(output_dir, "tables", "master_per_mouse_summary.csv"), index=False)
-    df_all_trials.to_csv(os.path.join(output_dir, "tables", "master_all_trials_dataset.csv"), index=False)
+    df_all_summaries.to_csv(os.path.join(tables_dir, "master_per_mouse_summary.csv"), index=False)
+    df_all_trials.to_csv(os.path.join(tables_dir, "master_all_trials_dataset.csv"), index=False)
+
+    # --------------------------------------------------------------------------
+    # COHORT SUMMARIES (Young & Old)
+    # --------------------------------------------------------------------------
+    for age_group in ["Young", "Old"]:
+        cdir = os.path.join(output_dir, "cohorts", age_group)
+        os.makedirs(cdir, exist_ok=True)
+        n_m = len(young_ids) if age_group == "Young" else len(old_ids)
+        prefix = age_group.lower()
+
+        df_c = df_all_summaries[df_all_summaries["Age_Group"] == age_group]
+        df_c.to_csv(os.path.join(cdir, f"{prefix}_cohort_summary.csv"), index=False)
+
+        # Grand PETH per cohort
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
+
+        def draw_cohort_peth(axis, l_list, r_list, title):
+            m_l, s_l = np.mean(l_list, axis=0), sem(l_list, axis=0)
+            m_r, s_r = np.mean(r_list, axis=0), sem(r_list, axis=0)
+            axis.plot(rel_time, m_l, color=COLOR_LEFT, label=f"Left MeA (n={len(l_list)})", lw=2.2)
+            axis.fill_between(rel_time, m_l - s_l, m_l + s_l, color=COLOR_LEFT, alpha=0.22)
+            axis.plot(rel_time, m_r, color=COLOR_RIGHT, label=f"Right MeA (n={len(r_list)})", lw=2.2)
+            axis.fill_between(rel_time, m_r - s_r, m_r + s_r, color=COLOR_RIGHT, alpha=0.22)
+            axis.axvline(0, color="black", linestyle=":", lw=1.2)
+            axis.axhline(0, color="gray", linestyle="--", lw=0.7, alpha=0.6)
+            axis.axvspan(0, 2.0, color="#abdda4", alpha=0.2, label="0-2 s Window")
+            axis.axvspan(2.0, 4.0, color="#fee08b", alpha=0.14)
+            axis.set_title(title, fontweight="bold")
+            axis.set_xlabel("Time Relative to Onset (s)")
+            axis.grid(True, linestyle=":", alpha=0.4)
+            axis.legend(loc="upper right", frameon=True, facecolor="white", framealpha=0.88, edgecolor="none")
+
+        ax1.set_ylabel("Baseline-Corrected Z-Score")
+        draw_cohort_peth(ax1, cohort_peths[age_group]["Social"]["L"], cohort_peths[age_group]["Social"]["R"], "Social Sniffing")
+        draw_cohort_peth(ax2, cohort_peths[age_group]["NonSocial"]["L"], cohort_peths[age_group]["NonSocial"]["R"], "Object Exploration")
+        y_lo, y_hi = ax1.get_ylim()
+        ax1.set_ylim(y_lo, y_hi + 0.20 * (y_hi - y_lo))
+        fig.suptitle(f"{age_group} Cohort (n={n_m}) | Grand Average MeA Photometry Dynamics", fontweight="bold")
+        plt.tight_layout()
+        save_figure(fig, os.path.join(cdir, f"{prefix}_grand_peth.png"), dpi=250)
+        plt.close(fig)
+
+        # Spatial occupancy heatmap with physical extent & colorbar
+        mean_h = np.mean(cohort_spatial_heatmaps[age_group], axis=0)
+        fig, ax = plt.subplots(figsize=(6.8, 4.6))
+        im = ax.imshow(mean_h, origin="upper", cmap="inferno", aspect="auto", extent=[0.0, 1.0, 1.0, 0.0])
+        ax.set_xlabel("Arena X (Normalized)")
+        ax.set_ylabel("Arena Y (Normalized)")
+        ax.set_title(f"{age_group} Cohort (n={n_m}) | Mean Spatial Dwell Occupancy", fontweight="bold")
+        plt.colorbar(im, ax=ax, label="Normalized Presence Density")
+        plt.tight_layout()
+        save_figure(fig, os.path.join(cdir, f"{prefix}_spatial_heatmap.png"), dpi=250)
+        plt.close(fig)
+
+        # Coherence spectrum per cohort
+        freqs = cohort_coherence[age_group]["freqs"]
+        m_pre_c = np.mean(cohort_coherence[age_group]["spectrum_pre"], axis=0)
+        s_pre_c = sem(cohort_coherence[age_group]["spectrum_pre"], axis=0)
+        m_post_c = np.mean(cohort_coherence[age_group]["spectrum_post"], axis=0)
+        s_post_c = sem(cohort_coherence[age_group]["spectrum_post"], axis=0)
+        f_mask = freqs <= 3.0
+
+        fig, ax = plt.subplots(figsize=(6.8, 4.6))
+        ax.plot(freqs[f_mask], m_pre_c[f_mask], color="gray", lw=2.2, label="Baseline (-5 to 0 s)")
+        ax.fill_between(freqs[f_mask], (m_pre_c - s_pre_c)[f_mask], (m_pre_c + s_pre_c)[f_mask], color="gray", alpha=0.2)
+        ax.plot(freqs[f_mask], m_post_c[f_mask], color=COLOR_YOUNG if age_group == "Young" else COLOR_OLD, lw=2.2, label="Social Interaction (0 to 5 s)")
+        ax.fill_between(freqs[f_mask], (m_post_c - s_post_c)[f_mask], (m_post_c + s_post_c)[f_mask], color=COLOR_YOUNG if age_group == "Young" else COLOR_OLD, alpha=0.22)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Magnitude-Squared Coherence")
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_title(f"{age_group} Cohort (n={n_m}) | Bilateral MeA Coherence Spectrum", fontweight="bold")
+        ax.legend(loc="upper right", frameon=False)
+        ax.grid(True, linestyle=":", alpha=0.5)
+        plt.tight_layout()
+        save_figure(fig, os.path.join(cdir, f"{prefix}_spectral_coherence.png"), dpi=250)
+        plt.close(fig)
+
+    # --------------------------------------------------------------------------
+    # GROUP COMPARISON PUBLICATION FIGURES (Figures 1 to 6)
+    # --------------------------------------------------------------------------
+    # Figure 1: Grand Average PETH
+    fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6), sharey=True)
+
+    def render_cohort_cmp(axis, y_list, o_list, title):
+        ym, ys = np.mean(y_list, axis=0), sem(y_list, axis=0)
+        om, os_v = np.mean(o_list, axis=0), sem(o_list, axis=0)
+        axis.plot(rel_time, ym, color=COLOR_YOUNG, lw=2.2, label="Young (n=8)")
+        axis.fill_between(rel_time, ym - ys, ym + ys, color=COLOR_YOUNG, alpha=0.22)
+        axis.plot(rel_time, om, color=COLOR_OLD, lw=2.2, label="Old (n=10)")
+        axis.fill_between(rel_time, om - os_v, om + os_v, color=COLOR_OLD, alpha=0.22)
+        axis.axvline(0, color="black", linestyle=":", lw=1.2)
+        axis.axhline(0, color="gray", linestyle="--", lw=0.7, alpha=0.6)
+        axis.axvspan(0, 2.0, color="#abdda4", alpha=0.2, label="0-2 s Window")
+        axis.axvspan(2.0, 4.0, color="#fee08b", alpha=0.12)
+        axis.set_title(title, fontweight="bold")
+        axis.set_xlabel("Time Relative to Onset (s)")
+        axis.grid(True, linestyle=":", alpha=0.4)
+        axis.legend(loc="upper right", frameon=True, facecolor="white", framealpha=0.88, edgecolor="none")
+
+    y_soc_bilat = [(cohort_peths["Young"]["Social"]["L"][i] + cohort_peths["Young"]["Social"]["R"][i]) / 2.0 for i in range(len(young_ids))]
+    o_soc_bilat = [(cohort_peths["Old"]["Social"]["L"][i] + cohort_peths["Old"]["Social"]["R"][i]) / 2.0 for i in range(len(old_ids))]
+    y_obj_bilat = [(cohort_peths["Young"]["NonSocial"]["L"][i] + cohort_peths["Young"]["NonSocial"]["R"][i]) / 2.0 for i in range(len(young_ids))]
+    o_obj_bilat = [(cohort_peths["Old"]["NonSocial"]["L"][i] + cohort_peths["Old"]["NonSocial"]["R"][i]) / 2.0 for i in range(len(old_ids))]
+
+    ax1.set_ylabel("Baseline-Corrected Z-Score")
+    render_cohort_cmp(ax1, y_soc_bilat, o_soc_bilat, "Social Sniffing")
+    render_cohort_cmp(ax2, y_obj_bilat, o_obj_bilat, "Object Exploration")
+    y_lo1, y_hi1 = ax1.get_ylim()
+    ax1.set_ylim(y_lo1, y_hi1 + 0.22 * (y_hi1 - y_lo1))
+    def sig_stars(p):
+        return "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
+
+    def sig_note(p):
+        return sig_stars(p) if p < 0.05 else ", n.s."
+
+    fig1.suptitle("Figure 1 | Grand Average MeA Dynamics: Young vs Old Mice", fontweight="bold")
+    plt.tight_layout()
+    save_figure(fig1, os.path.join(figs_dir, "Figure1_Grand_PETH_Dynamics.png"), dpi=300)
+    save_figure(fig1, os.path.join(figs_dir, "Figure1_Grand_PETH_Dynamics.pdf"))
+    plt.close(fig1)
+
+    # Figure 2: Lateralization Index
+    young_lis = df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Social_Lateralization_Index"]
+    old_lis = df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Social_Lateralization_Index"]
+    t_lat, p_lat = ttest_ind(young_lis, old_lis, equal_var=False)
+
+    fig2, ax = plt.subplots(figsize=(6.2, 5.0))
+    ax.boxplot([young_lis, old_lis], positions=[1, 2], widths=0.45, patch_artist=True, showfliers=False,
+               boxprops=dict(facecolor="#f0f0f0", lw=1.2), medianprops=dict(color="black", lw=1.8))
+    ax.scatter(1 + rng.normal(0, 0.04, len(young_lis)), young_lis, color=COLOR_YOUNG, s=55, alpha=0.85, label="Young (n=8)")
+    ax.scatter(2 + rng.normal(0, 0.04, len(old_lis)), old_lis, color=COLOR_OLD, s=55, alpha=0.85, label="Old (n=10)")
+    ax.axhline(0, color="gray", linestyle="--", lw=1.0)
+    ax.set_xticks([1, 2])
+    ax.set_xticklabels(["Young", "Old"], fontweight="bold")
+    ax.set_ylabel("Social Lateralization Index (LI)")
+    ax.set_ylim(-1.05, 1.05)
+    ax.set_title(f"Figure 2 | Hemispheric Lateralization Index (p = {p_lat:.3f}{sig_note(p_lat)})\n(+1: Left MeA Dominant, -1: Right MeA Dominant)", fontweight="bold")
+    ax.grid(True, axis="y", linestyle=":", alpha=0.5)
+    plt.tight_layout()
+    save_figure(fig2, os.path.join(figs_dir, "Figure2_Hemispheric_Lateralization.png"), dpi=300)
+    save_figure(fig2, os.path.join(figs_dir, "Figure2_Hemispheric_Lateralization.pdf"))
+    plt.close(fig2)
+
+    # Figure 3: Primary Activation Deficits (Peak Z, Whole-Bout Mean Z, 0-2 s Window)
+    young_pks = (df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Social_Peak_Left"] + df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Social_Peak_Right"]) / 2.0
+    old_pks = (df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Social_Peak_Left"] + df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Social_Peak_Right"]) / 2.0
+    t_pk, p_pk = ttest_ind(young_pks, old_pks, equal_var=False)
+
+    young_wb = df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Social_Whole_Bout_Mean_Z_Bilateral"]
+    old_wb = df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Social_Whole_Bout_Mean_Z_Bilateral"]
+    t_wb, p_wb = ttest_ind(young_wb, old_wb, equal_var=False)
+
+    young_m02 = df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Social_Mean_Z_0_2s_Bilateral"]
+    old_m02 = df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Social_Mean_Z_0_2s_Bilateral"]
+    t_m02, p_m02 = ttest_ind(young_m02, old_m02, equal_var=False)
+
+    fig3, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 4.8))
+    panels_f3 = [
+        (ax1, young_pks, old_pks, "Peak MeA Activation (Z-score)", f"A | Peak Activation (0 to 4 s)\n(Welch's t = {t_pk:.2f}, p = {p_pk:.4f}{sig_stars(p_pk)})", False),
+        (ax2, young_wb, old_wb, "Whole-Bout Mean Z-Score", f"B | Whole-Bout Mean Z (Duration-Normalized)\n(Welch's t = {t_wb:.2f}, p = {p_wb:.4f}{sig_stars(p_wb)})", True),
+        (ax3, young_m02, old_m02, "Mean Z-Score (0 to +2 s)", f"C | Fixed 0 to +2 s Window\n(Welch's t = {t_m02:.2f}, p = {p_m02:.4f}{sig_stars(p_m02)})", True),
+    ]
+    for axis, y_v, o_v, ylab, tit, draw_zero in panels_f3:
+        axis.boxplot([y_v, o_v], positions=[1, 2], widths=0.45, patch_artist=True, showfliers=False,
+                     boxprops=dict(facecolor="#f0f0f0", lw=1.2), medianprops=dict(color="black", lw=1.8))
+        axis.scatter(1 + rng.normal(0, 0.04, len(y_v)), y_v, color=COLOR_YOUNG, s=55, alpha=0.85)
+        axis.scatter(2 + rng.normal(0, 0.04, len(o_v)), o_v, color=COLOR_OLD, s=55, alpha=0.85)
+        if draw_zero:
+            axis.axhline(0, color="gray", linestyle="--", lw=1.0)
+        axis.set_xticks([1, 2])
+        axis.set_xticklabels(["Young", "Old"], fontweight="bold")
+        axis.set_ylabel(ylab)
+        axis.set_title(tit, fontweight="bold")
+        axis.grid(True, axis="y", linestyle=":", alpha=0.5)
+
+    fig3.suptitle("Figure 3 | Medial Amygdala Activation Deficits in Aging (Peak, Whole-Bout Mean & 0-2 s Window)", fontweight="bold")
+    plt.tight_layout()
+    save_figure(fig3, os.path.join(figs_dir, "Figure3_MeA_Peak_Activation_Aging_Deficit.png"), dpi=300)
+    save_figure(fig3, os.path.join(figs_dir, "Figure3_MeA_Peak_Activation_Aging_Deficit.pdf"))
+    plt.close(fig3)
+
+    # Figure 4: Behavioral SPI & Locomotor Control
+    young_spis = df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Behavioral_Social_Preference_Index"]
+    old_spis = df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Behavioral_Social_Preference_Index"]
+    t_spi, p_spi = ttest_ind(young_spis, old_spis, equal_var=False)
+
+    young_dists = df_all_summaries[df_all_summaries["Age_Group"] == "Young"]["Locomotor_Distance_px"]
+    old_dists = df_all_summaries[df_all_summaries["Age_Group"] == "Old"]["Locomotor_Distance_px"]
+    t_dist, p_dist = ttest_ind(young_dists, old_dists, equal_var=False)
+
+    fig4, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.5, 4.6))
+    ax1.boxplot([young_spis, old_spis], positions=[1, 2], widths=0.45, patch_artist=True, showfliers=False,
+                boxprops=dict(facecolor="#f0f0f0", lw=1.2), medianprops=dict(color="black", lw=1.8))
+    ax1.scatter(1 + rng.normal(0, 0.04, len(young_spis)), young_spis, color=COLOR_YOUNG, s=50, alpha=0.85)
+    ax1.scatter(2 + rng.normal(0, 0.04, len(old_spis)), old_spis, color=COLOR_OLD, s=50, alpha=0.85)
+    ax1.axhline(0, color="gray", linestyle="--", lw=1.0)
+    ax1.set_xticks([1, 2])
+    ax1.set_xticklabels(["Young", "Old"], fontweight="bold")
+    ax1.set_ylabel("Social Preference Index (SPI)")
+    ax1.set_title(f"A | Behavioral Sociability (p = {p_spi:.3f}{sig_note(p_spi)})", fontweight="bold")
+    ax1.grid(True, axis="y", linestyle=":", alpha=0.5)
+
+    ax2.boxplot([young_dists, old_dists], positions=[1, 2], widths=0.45, patch_artist=True, showfliers=False,
+                boxprops=dict(facecolor="#f0f0f0", lw=1.2), medianprops=dict(color="black", lw=1.8))
+    ax2.scatter(1 + rng.normal(0, 0.04, len(young_dists)), young_dists, color=COLOR_YOUNG, s=50, alpha=0.85)
+    ax2.scatter(2 + rng.normal(0, 0.04, len(old_dists)), old_dists, color=COLOR_OLD, s=50, alpha=0.85)
+    ax2.set_xticks([1, 2])
+    ax2.set_xticklabels(["Young", "Old"], fontweight="bold")
+    ax2.set_ylabel("Total Distance Traveled (px)")
+    ax2.set_title(f"B | Locomotor Distance Control (p = {p_dist:.3f}{sig_note(p_dist)})", fontweight="bold")
+    ax2.grid(True, axis="y", linestyle=":", alpha=0.5)
+
+    fig4.suptitle("Figure 4 | Behavioral Preference & Locomotor Kinematics Controls", fontweight="bold")
+    plt.tight_layout()
+    save_figure(fig4, os.path.join(figs_dir, "Figure4_Behavioral_SPI_and_Locomotion.png"), dpi=300)
+    save_figure(fig4, os.path.join(figs_dir, "Figure4_Behavioral_SPI_and_Locomotion.pdf"))
+    plt.close(fig4)
+
+    # Figure 5: Spatial Neural Mapping (Representative Mouse 303 with exact arena pixel bounds)
+    df_s = load_tracking_csv(tracking_dir, "Young", "303").dropna(subset=["x_px", "y_px", "CH1_z", "CH2_z"])
+    xs, ys = df_s["x_px"].values, df_s["y_px"].values
+    zl, zr = df_s["CH1_z"].values, df_s["CH2_z"].values
+
+    h_l, _, _ = np.histogram2d(xs, ys, bins=[60, 40], weights=np.maximum(0, zl))
+    h_r, _, _ = np.histogram2d(xs, ys, bins=[60, 40], weights=np.maximum(0, zr))
+    cnts, _, _ = np.histogram2d(xs, ys, bins=[60, 40])
+    cnts[cnts == 0] = 1
+    map_l = gaussian_filter(h_l.T / cnts.T, sigma=1.2)
+    map_r = gaussian_filter(h_r.T / cnts.T, sigma=1.2)
+    ext = [float(xs.min()), float(xs.max()), float(ys.max()), float(ys.min())]
+
+    fig5, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6))
+    im1 = ax1.imshow(map_l, cmap="viridis", origin="upper", extent=ext, aspect="auto")
+    ax1.set_title("Left MeA (CH1) Mean Activity", fontweight="bold")
+    ax1.set_xlabel("Arena X (px)")
+    ax1.set_ylabel("Arena Y (px)")
+    plt.colorbar(im1, ax=ax1, label="Mean Z-Score")
+
+    im2 = ax2.imshow(map_r, cmap="viridis", origin="upper", extent=ext, aspect="auto")
+    ax2.set_title("Right MeA (CH2) Mean Activity", fontweight="bold")
+    ax2.set_xlabel("Arena X (px)")
+    ax2.set_ylabel("Arena Y (px)")
+    plt.colorbar(im2, ax=ax2, label="Mean Z-Score")
+
+    fig5.suptitle("Figure 5 | 2D Spatial Neural Representation (Representative Animal: Mouse 303)", fontweight="bold")
+    plt.tight_layout()
+    save_figure(fig5, os.path.join(figs_dir, "Figure5_Spatial_Neural_Mapping.png"), dpi=300)
+    save_figure(fig5, os.path.join(figs_dir, "Figure5_Spatial_Neural_Mapping.pdf"))
+    plt.close(fig5)
+
+    # Figure 6: Bilateral Spectral Coherence
+    fig6 = plt.figure(figsize=(14.5, 4.8))
+    gs = gridspec.GridSpec(1, 3, width_ratios=[1.3, 1.1, 1])
+    ax_spec = fig6.add_subplot(gs[0])
+    ax_bar = fig6.add_subplot(gs[1])
+    ax_del = fig6.add_subplot(gs[2])
+
+    freqs = cohort_coherence["Young"]["freqs"]
+    f_mask = freqs <= 3.0
+    m_full = (freqs >= 0.1) & (freqs <= 3.0)
+    m_b1 = (freqs >= 0.1) & (freqs <= 0.5)
+    m_b2 = (freqs >= 0.5) & (freqs <= 1.5)
+    m_b3 = (freqs >= 1.5) & (freqs <= 3.0)
+    m_std = (freqs >= 0.8) & (freqs <= 1.6)
+
+    y_post_spec, y_post_sem = np.mean(cohort_coherence["Young"]["spectrum_post"], axis=0), sem(cohort_coherence["Young"]["spectrum_post"], axis=0)
+    o_post_spec, o_post_sem = np.mean(cohort_coherence["Old"]["spectrum_post"], axis=0), sem(cohort_coherence["Old"]["spectrum_post"], axis=0)
+
+    ax_spec.plot(freqs[f_mask], y_post_spec[f_mask], color=COLOR_YOUNG, lw=2.2, label="Young Social (n=8)")
+    ax_spec.fill_between(freqs[f_mask], (y_post_spec - y_post_sem)[f_mask], (y_post_spec + y_post_sem)[f_mask], color=COLOR_YOUNG, alpha=0.22)
+    ax_spec.plot(freqs[f_mask], o_post_spec[f_mask], color=COLOR_OLD, lw=2.2, label="Old Social (n=10)")
+    ax_spec.fill_between(freqs[f_mask], (o_post_spec - o_post_sem)[f_mask], (o_post_spec + o_post_sem)[f_mask], color=COLOR_OLD, alpha=0.22)
+    ax_spec.axvspan(0.1, 0.5, color="#9ecae1", alpha=0.2, label="0.1-0.5 Hz")
+    ax_spec.axvspan(0.5, 1.5, color="#fee08b", alpha=0.3, label="0.5-1.5 Hz")
+    ax_spec.axvspan(1.5, 3.0, color="#fc9272", alpha=0.2, label="1.5-3.0 Hz")
+    ax_spec.set_xlabel("Frequency (Hz)")
+    ax_spec.set_ylabel("Magnitude-Squared Coherence")
+    ax_spec.set_ylim(-0.05, 1.05)
+    ax_spec.set_title("A | Inter-Hemispheric Coherence Spectrum", fontweight="bold")
+    ax_spec.legend(loc="upper right", frameon=False, fontsize=8)
+    ax_spec.grid(True, linestyle=":", alpha=0.5)
+
+    band_labels = ["Full (0.1-3 Hz)", "0.1-0.5 Hz", "0.5-1.5 Hz", "1.5-3.0 Hz", "0.8-1.6 Hz"]
+    y_b_vals = [np.mean([np.mean(c[m]) for c in cohort_coherence["Young"]["spectrum_post"]]) for m in [m_full, m_b1, m_b2, m_b3, m_std]]
+    o_b_vals = [np.mean([np.mean(c[m]) for c in cohort_coherence["Old"]["spectrum_post"]]) for m in [m_full, m_b1, m_b2, m_b3, m_std]]
+    x_b = np.arange(len(band_labels))
+    w = 0.35
+    ax_bar.bar(x_b - w / 2, y_b_vals, width=w, color=COLOR_YOUNG, label="Young", edgecolor="black")
+    ax_bar.bar(x_b + w / 2, o_b_vals, width=w, color=COLOR_OLD, label="Old", edgecolor="black")
+    ax_bar.set_xticks(x_b)
+    ax_bar.set_xticklabels(band_labels, rotation=25, ha="right", fontsize=8.5)
+    ax_bar.set_ylabel("Social Coherence")
+    ax_bar.set_ylim(0, 1.05)
+    ax_bar.set_title("B | Multi-Band Coherence Across Ages", fontweight="bold")
+    ax_bar.legend(loc="upper right", frameon=False)
+    ax_bar.grid(True, axis="y", linestyle=":", alpha=0.5)
+
+    y_del = cohort_coherence["Young"]["delta_full"]
+    o_del = cohort_coherence["Old"]["delta_full"]
+    t_del, p_del = ttest_ind(y_del, o_del, equal_var=False)
+
+    ax_del.boxplot([y_del, o_del], positions=[1, 2], widths=0.45, patch_artist=True, showfliers=False,
+                   boxprops=dict(facecolor="#f0f0f0", lw=1.2), medianprops=dict(color="black", lw=1.8))
+    ax_del.scatter(1 + rng.normal(0, 0.04, len(y_del)), y_del, color=COLOR_YOUNG, s=55, alpha=0.85)
+    ax_del.scatter(2 + rng.normal(0, 0.04, len(o_del)), o_del, color=COLOR_OLD, s=55, alpha=0.85)
+    ax_del.axhline(0, color="gray", linestyle="--", lw=1.0)
+    ax_del.set_xticks([1, 2])
+    ax_del.set_xticklabels(["Young", "Old"], fontweight="bold")
+    ax_del.set_ylabel("Full Coherence Delta (Social - Baseline)")
+    ax_del.set_title(f"C | Coherence Shift (p = {p_del:.3f}{sig_note(p_del)})", fontweight="bold")
+    ax_del.grid(True, axis="y", linestyle=":", alpha=0.5)
+
+    fig6.suptitle("Figure 6 | Inter-Hemispheric Medial Amygdala Spectral Coherence & Functional Coupling", fontweight="bold")
+    plt.tight_layout()
+    save_figure(fig6, os.path.join(figs_dir, "Figure6_Bilateral_Spectral_Coherence_and_Aging.png"), dpi=300)
+    save_figure(fig6, os.path.join(figs_dir, "Figure6_Bilateral_Spectral_Coherence_and_Aging.pdf"))
+    plt.close(fig6)
+
+    # --------------------------------------------------------------------------
+    # STATISTICAL REPORT
+    # --------------------------------------------------------------------------
+    y_del_std = cohort_coherence["Young"]["delta_std"]
+    o_del_std = cohort_coherence["Old"]["delta_std"]
+    t_del_std, p_del_std = ttest_ind(y_del_std, o_del_std, equal_var=False)
+
+    stat_report_fp = os.path.join(tables_dir, "statistical_report.txt")
+    with open(stat_report_fp, "w", encoding="utf-8") as sf:
+        sf.write("========================================================================================\n")
+        sf.write("STATISTICAL REPORT: BILATERAL MEDIAL AMYGDALA PHOTOMETRY & COHERENCE DYNAMICS IN AGING\n")
+        sf.write("========================================================================================\n\n")
+
+        sf.write("1. PRIMARY NEURAL ACTIVATION (UNCONTAMINATED SOCIAL BOUTS):\n")
+        sf.write("   A. Social Sniffing Peak MeA Z-Score (0 to 4 s):\n")
+        sf.write(f"      - Young Cohort (n=8):  {young_pks.mean():.3f} +/- {sem(young_pks):.3f} (Mean +/- SEM)\n")
+        sf.write(f"      - Old Cohort (n=10):   {old_pks.mean():.3f} +/- {sem(old_pks):.3f} (Mean +/- SEM)\n")
+        sf.write(f"      - Welch's t-test:      t = {t_pk:.3f}, p = {p_pk:.4f}\n\n")
+
+        sf.write("   B. Whole-Bout Mean MeA Z-Score (Duration-Normalized):\n")
+        sf.write(f"      - Young Cohort (n=8):  {young_wb.mean():.3f} +/- {sem(young_wb):.3f} (Mean +/- SEM)\n")
+        sf.write(f"      - Old Cohort (n=10):   {old_wb.mean():.3f} +/- {sem(old_wb):.3f} (Mean +/- SEM)\n")
+        sf.write(f"      - Welch's t-test:      t = {t_wb:.3f}, p = {p_wb:.4f}\n\n")
+
+        sf.write("   C. Fixed 0 to +2 s Mean MeA Z-Score (Initial Trigger Window):\n")
+        sf.write(f"      - Young Cohort (n=8):  {young_m02.mean():.3f} +/- {sem(young_m02):.3f} (Mean +/- SEM)\n")
+        sf.write(f"      - Old Cohort (n=10):   {old_m02.mean():.3f} +/- {sem(old_m02):.3f} (Mean +/- SEM)\n")
+        sf.write(f"      - Welch's t-test:      t = {t_m02:.3f}, p = {p_m02:.4f}\n\n")
+
+        sf.write("2. INTER-HEMISPHERIC LATERALIZATION INDEX:\n")
+        sf.write(f"   - Young Social LI:     {young_lis.mean():.3f} +/- {sem(young_lis):.3f}\n")
+        sf.write(f"   - Old Social LI:       {old_lis.mean():.3f} +/- {sem(old_lis):.3f}\n")
+        sf.write(f"   - Welch's t-test:      t = {t_lat:.3f}, p = {p_lat:.4f} (Symmetric Bilateral Recruitment)\n\n")
+
+        sf.write("3. INTER-HEMISPHERIC SPECTRAL COHERENCE (0.1 to 3.0 Hz):\n")
+        sf.write("   A. Full Spectrum (0.1 to 3.0 Hz):\n")
+        sf.write(f"      - Young Social Coherence:      {np.mean(cohort_coherence['Young']['post_full']):.3f} +/- {sem(cohort_coherence['Young']['post_full']):.3f}\n")
+        sf.write(f"      - Old Social Coherence:        {np.mean(cohort_coherence['Old']['post_full']):.3f} +/- {sem(cohort_coherence['Old']['post_full']):.3f}\n")
+        sf.write(f"      - Welch's t-test on Delta:     t = {t_del:.3f}, p = {p_del:.4f}\n\n")
+
+        sf.write("   B. Low-Frequency Band (0.8 to 1.6 Hz):\n")
+        sf.write(f"      - Young Delta:                 {np.mean(y_del_std):.3f} +/- {sem(y_del_std):.3f}\n")
+        sf.write(f"      - Old Delta:                   {np.mean(o_del_std):.3f} +/- {sem(o_del_std):.3f}\n")
+        sf.write(f"      - Welch's t-test on Delta:     t = {t_del_std:.3f}, p = {p_del_std:.4f}\n\n")
+
+        sf.write("4. BEHAVIORAL SOCIAL PREFERENCE INDEX (SPI):\n")
+        sf.write(f"   - Young SPI:           {young_spis.mean():.3f} +/- {sem(young_spis):.3f}\n")
+        sf.write(f"   - Old SPI:             {old_spis.mean():.3f} +/- {sem(old_spis):.3f}\n")
+        sf.write(f"   - Welch's t-test:      t = {t_spi:.3f}, p = {p_spi:.4f}\n\n")
+
+        sf.write("5. LOCOMOTOR KINEMATICS (Control):\n")
+        sf.write(f"   - Young Distance (px): {young_dists.mean():.1f} +/- {sem(young_dists):.1f}\n")
+        sf.write(f"   - Old Distance (px):   {old_dists.mean():.1f} +/- {sem(old_dists):.1f}\n")
+        sf.write(f"   - Welch's t-test:      t = {t_dist:.3f}, p = {p_dist:.4f} (No Locomotor Impairment)\n")
 
     print(f"Cohort analysis complete. Results saved to {output_dir}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Cohort Analysis: Bilateral MeA Photometry & Behavior")
-    parser.add_argument("--raw_zip", type=str, default=None, help="Path to raw photometry Data_2.zip")
-    parser.add_argument("--tracking_dir", type=str, default=None, help="Path to tracking results directory")
+    parser.add_argument("--raw_zip", type=str, default=None, help="Path to Data_2.zip or extracted Data_2 folder")
+    parser.add_argument("--tracking_dir", type=str, default=None, help="Path to results_social tracking directory")
     parser.add_argument("--output_dir", type=str, default=None, help="Path to output directory")
     args = parser.parse_args()
 

@@ -58,8 +58,7 @@ def compute_bout_stratification(df_trials):
 
 def compute_offset_and_zone_entry(time_phot, z_l, z_r, soc_offsets, df_tr):
     """Compute bout-offset disengagement drop and 60 fps chamber-entry responses."""
-    dt_p = 1.0 / 30.0
-    rel_off = np.arange(-2.0, 2.0 + dt_p / 2.0, dt_p)
+    rel_off = np.linspace(-2.0, 2.0, 121)
     z_bi = (z_l + z_r) / 2.0
 
     off_deltas = []
@@ -75,8 +74,7 @@ def compute_offset_and_zone_entry(time_phot, z_l, z_r, soc_offsets, df_tr):
     t_tr = df_tr["video_time_sec"].values
     z_tr = (df_tr["CH1_z"].values + df_tr["CH2_z"].values) / 2.0
     comp = df_tr["compartment_stimulus"].values
-    dt_t = 1.0 / 60.0
-    rel_z = np.arange(-2.0, 4.0 + dt_t / 2.0, dt_t)
+    rel_z = np.linspace(-2.0, 4.0, 361)
 
     soc_entry_d, obj_entry_d = [], []
     last_s, last_o = -10.0, -10.0

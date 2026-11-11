@@ -77,7 +77,7 @@ def run_nonparametric_and_lomo(df_sum):
 
 
 def fit_trial_lmm(df_trials):
-    """Fit hierarchical LMM across all 381 social bouts and test AUC vs duration dependence."""
+    """Fit hierarchical LMM across all social bouts and test AUC vs duration dependence."""
     soc = df_trials[df_trials["Stimulus"] == "Social"].copy()
     soc["Peak_Bilat"] = (soc["Left_MeA_Peak_Z"] + soc["Right_MeA_Peak_Z"]) / 2.0
     soc["AUC_Bilat"] = (soc["Left_MeA_AUC"] + soc["Right_MeA_AUC"]) / 2.0

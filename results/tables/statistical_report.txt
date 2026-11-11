@@ -2,37 +2,37 @@
 STATISTICAL REPORT: BILATERAL MEDIAL AMYGDALA PHOTOMETRY & COHERENCE DYNAMICS IN AGING
 ========================================================================================
 
-1. PRIMARY NEURAL ACTIVATION:
+1. PRIMARY NEURAL ACTIVATION (UNCONTAMINATED SOCIAL BOUTS):
    A. Social Sniffing Peak MeA Z-Score (0 to 4 s):
-      - Young Cohort (n=8):  1.585 +/- 0.108 (Mean +/- SEM)
-      - Old Cohort (n=10):   1.103 +/- 0.097 (Mean +/- SEM)
-      - Welch's t-test:      t = 3.326, p = 0.0046 (Significant Aging Deficit, p < 0.01)
+      - Young Cohort (n=8):  1.772 +/- 0.243 (Mean +/- SEM)
+      - Old Cohort (n=10):   0.978 +/- 0.114 (Mean +/- SEM)
+      - Welch's t-test:      t = 2.958, p = 0.0143
 
    B. Whole-Bout Mean MeA Z-Score (Duration-Normalized):
-      - Young Cohort (n=8):  0.301 +/- 0.076 (Mean +/- SEM)
-      - Old Cohort (n=10):   0.016 +/- 0.086 (Mean +/- SEM)
-      - Welch's t-test:      t = 2.483, p = 0.0245 (Significant Aging Deficit, p < 0.05)
+      - Young Cohort (n=8):  0.406 +/- 0.145 (Mean +/- SEM)
+      - Old Cohort (n=10):   -0.048 +/- 0.093 (Mean +/- SEM)
+      - Welch's t-test:      t = 2.640, p = 0.0211
 
    C. Fixed 0 to +2 s Mean MeA Z-Score (Initial Trigger Window):
-      - Young Cohort (n=8):  0.340 +/- 0.081 (Mean +/- SEM)
-      - Old Cohort (n=10):   0.077 +/- 0.079 (Mean +/- SEM)
-      - Welch's t-test:      t = 2.332, p = 0.0334 (Significant Aging Deficit, p < 0.05)
+      - Young Cohort (n=8):  0.469 +/- 0.157 (Mean +/- SEM)
+      - Old Cohort (n=10):   0.024 +/- 0.091 (Mean +/- SEM)
+      - Welch's t-test:      t = 2.454, p = 0.0312
 
 2. INTER-HEMISPHERIC LATERALIZATION INDEX:
-   - Young Social LI:     0.026 +/- 0.130
-   - Old Social LI:       -0.120 +/- 0.102
-   - Welch's t-test:      t = 0.884, p = 0.3917 (No Hemispheric Bias)
+   - Young Social LI:     -0.151 +/- 0.122
+   - Old Social LI:       -0.066 +/- 0.161
+   - Welch's t-test:      t = -0.417, p = 0.6821 (Symmetric Bilateral Recruitment)
 
 3. INTER-HEMISPHERIC SPECTRAL COHERENCE (0.1 to 3.0 Hz):
    A. Full Spectrum (0.1 to 3.0 Hz):
-      - Young Social Coherence:      0.596 +/- 0.054
-      - Old Social Coherence:        0.590 +/- 0.032
-      - Welch's t-test on Delta:     t = 0.896, p = 0.3842
+      - Young Social Coherence:      0.601 +/- 0.054
+      - Old Social Coherence:        0.582 +/- 0.039
+      - Welch's t-test on Delta:     t = 0.987, p = 0.3382
 
    B. Low-Frequency Band (0.8 to 1.6 Hz):
-      - Young Delta:                 -0.031 +/- 0.026
-      - Old Delta:                   -0.070 +/- 0.025
-      - Welch's t-test on Delta:     t = 1.081, p = 0.2961
+      - Young Delta:                 0.004 +/- 0.027
+      - Old Delta:                   -0.062 +/- 0.027
+      - Welch's t-test on Delta:     t = 1.742, p = 0.1011
 
 4. BEHAVIORAL SOCIAL PREFERENCE INDEX (SPI):
    - Young SPI:           0.122 +/- 0.240

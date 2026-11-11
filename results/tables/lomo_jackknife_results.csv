@@ -1,55 +1,55 @@
 Metric,Dropped_Mouse,Dropped_Group,Welch_p
-Peak MeA Z (0-4 s),303,Young,0.0112
-Peak MeA Z (0-4 s),305,Young,0.00133
-Peak MeA Z (0-4 s),307,Young,0.01129
-Peak MeA Z (0-4 s),308,Young,0.00663
-Peak MeA Z (0-4 s),309,Young,0.01174
-Peak MeA Z (0-4 s),311,Young,0.01092
-Peak MeA Z (0-4 s),326,Young,0.00217
-Peak MeA Z (0-4 s),331,Young,0.01171
-Peak MeA Z (0-4 s),315,Old,0.00746
-Peak MeA Z (0-4 s),316,Old,0.00848
-Peak MeA Z (0-4 s),317,Old,0.00735
-Peak MeA Z (0-4 s),318,Old,0.00527
-Peak MeA Z (0-4 s),319,Old,0.00694
-Peak MeA Z (0-4 s),323,Old,0.00444
-Peak MeA Z (0-4 s),50,Old,0.00792
-Peak MeA Z (0-4 s),56,Old,0.00259
-Peak MeA Z (0-4 s),66,Old,0.00304
-Peak MeA Z (0-4 s),69,Old,0.00579
-Whole-Bout Mean Z,303,Young,0.03837
-Whole-Bout Mean Z,305,Young,0.03121
-Whole-Bout Mean Z,307,Young,0.04772
-Whole-Bout Mean Z,308,Young,0.03553
-Whole-Bout Mean Z,309,Young,0.03823
-Whole-Bout Mean Z,311,Young,0.04292
-Whole-Bout Mean Z,326,Young,0.00251
-Whole-Bout Mean Z,331,Young,0.04604
-Whole-Bout Mean Z,315,Old,0.02745
-Whole-Bout Mean Z,316,Old,0.04168
-Whole-Bout Mean Z,317,Old,0.03777
-Whole-Bout Mean Z,318,Old,0.03501
-Whole-Bout Mean Z,319,Old,0.03385
-Whole-Bout Mean Z,323,Old,0.0326
-Whole-Bout Mean Z,50,Old,0.04505
-Whole-Bout Mean Z,56,Old,0.04569
-Whole-Bout Mean Z,66,Old,0.01142
-Whole-Bout Mean Z,69,Old,0.01054
-Fixed 0-2 s Mean Z,303,Young,0.05707
-Fixed 0-2 s Mean Z,305,Young,0.03086
-Fixed 0-2 s Mean Z,307,Young,0.0636
-Fixed 0-2 s Mean Z,308,Young,0.0424
-Fixed 0-2 s Mean Z,309,Young,0.05825
-Fixed 0-2 s Mean Z,311,Young,0.06411
-Fixed 0-2 s Mean Z,326,Young,0.00363
-Fixed 0-2 s Mean Z,331,Young,0.06797
-Fixed 0-2 s Mean Z,315,Old,0.04362
-Fixed 0-2 s Mean Z,316,Old,0.05409
-Fixed 0-2 s Mean Z,317,Old,0.04432
-Fixed 0-2 s Mean Z,318,Old,0.04927
-Fixed 0-2 s Mean Z,319,Old,0.04576
-Fixed 0-2 s Mean Z,323,Old,0.03773
-Fixed 0-2 s Mean Z,50,Old,0.06185
-Fixed 0-2 s Mean Z,56,Old,0.04659
-Fixed 0-2 s Mean Z,66,Old,0.01541
-Fixed 0-2 s Mean Z,69,Old,0.01521
+Peak MeA Z (0-4 s),303,Young,0.03387
+Peak MeA Z (0-4 s),305,Young,0.00687
+Peak MeA Z (0-4 s),307,Young,0.0326
+Peak MeA Z (0-4 s),308,Young,0.03233
+Peak MeA Z (0-4 s),309,Young,0.03351
+Peak MeA Z (0-4 s),311,Young,0.02327
+Peak MeA Z (0-4 s),326,Young,0.00512
+Peak MeA Z (0-4 s),331,Young,0.03502
+Peak MeA Z (0-4 s),315,Old,0.01237
+Peak MeA Z (0-4 s),316,Old,0.01671
+Peak MeA Z (0-4 s),317,Old,0.0173
+Peak MeA Z (0-4 s),318,Old,0.01243
+Peak MeA Z (0-4 s),319,Old,0.01479
+Peak MeA Z (0-4 s),323,Old,0.00944
+Peak MeA Z (0-4 s),50,Old,0.02043
+Peak MeA Z (0-4 s),56,Old,0.01378
+Peak MeA Z (0-4 s),66,Old,0.02085
+Peak MeA Z (0-4 s),69,Old,0.01238
+Whole-Bout Mean Z,303,Young,0.03537
+Whole-Bout Mean Z,305,Young,0.02597
+Whole-Bout Mean Z,307,Young,0.04893
+Whole-Bout Mean Z,308,Young,0.04704
+Whole-Bout Mean Z,309,Young,0.04273
+Whole-Bout Mean Z,311,Young,0.04587
+Whole-Bout Mean Z,326,Young,0.00088
+Whole-Bout Mean Z,331,Young,0.04357
+Whole-Bout Mean Z,315,Old,0.01567
+Whole-Bout Mean Z,316,Old,0.02545
+Whole-Bout Mean Z,317,Old,0.02814
+Whole-Bout Mean Z,318,Old,0.01828
+Whole-Bout Mean Z,319,Old,0.02435
+Whole-Bout Mean Z,323,Old,0.02067
+Whole-Bout Mean Z,50,Old,0.03595
+Whole-Bout Mean Z,56,Old,0.03222
+Whole-Bout Mean Z,66,Old,0.02579
+Whole-Bout Mean Z,69,Old,0.01119
+Fixed 0-2 s Mean Z,303,Young,0.05041
+Fixed 0-2 s Mean Z,305,Young,0.02465
+Fixed 0-2 s Mean Z,307,Young,0.06319
+Fixed 0-2 s Mean Z,308,Young,0.06006
+Fixed 0-2 s Mean Z,309,Young,0.0618
+Fixed 0-2 s Mean Z,311,Young,0.05692
+Fixed 0-2 s Mean Z,326,Young,0.00591
+Fixed 0-2 s Mean Z,331,Young,0.06532
+Fixed 0-2 s Mean Z,315,Old,0.02772
+Fixed 0-2 s Mean Z,316,Old,0.03821
+Fixed 0-2 s Mean Z,317,Old,0.03698
+Fixed 0-2 s Mean Z,318,Old,0.02783
+Fixed 0-2 s Mean Z,319,Old,0.03443
+Fixed 0-2 s Mean Z,323,Old,0.02723
+Fixed 0-2 s Mean Z,50,Old,0.05079
+Fixed 0-2 s Mean Z,56,Old,0.04167
+Fixed 0-2 s Mean Z,66,Old,0.04109
+Fixed 0-2 s Mean Z,69,Old,0.01568

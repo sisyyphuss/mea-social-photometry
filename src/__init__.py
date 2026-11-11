@@ -2,6 +2,7 @@
 Bilateral Medial Amygdala (MeA) Photometry and Social Interaction Analysis
 """
 
+from .io_paths import resolve_data_paths, load_photometry_csv, load_tracking_csv
 from .preprocessing import butter_lowpass_filter, motion_correct_and_zscore
 from .peth import extract_bouts_from_events, slice_peth, compute_trial_metrics, calc_lateralization_index
 from .coherence import compute_spectral_coherence_bouts
@@ -16,8 +17,20 @@ from .behavior_neural import (
     compute_lagged_crosscorr,
     compute_brain_behavior_coupling,
 )
+from .visualization import (
+    set_publication_style,
+    compute_normalized_occupancy,
+    plot_individual_mouse_figures,
+    COLOR_LEFT,
+    COLOR_RIGHT,
+    COLOR_YOUNG,
+    COLOR_OLD,
+)
 
 __all__ = [
+    "resolve_data_paths",
+    "load_photometry_csv",
+    "load_tracking_csv",
     "butter_lowpass_filter",
     "motion_correct_and_zscore",
     "extract_bouts_from_events",
@@ -40,4 +53,11 @@ __all__ = [
     "compute_offset_and_zone_entry",
     "compute_lagged_crosscorr",
     "compute_brain_behavior_coupling",
+    "set_publication_style",
+    "compute_normalized_occupancy",
+    "plot_individual_mouse_figures",
+    "COLOR_LEFT",
+    "COLOR_RIGHT",
+    "COLOR_YOUNG",
+    "COLOR_OLD",
 ]
