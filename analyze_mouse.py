@@ -65,9 +65,9 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
     obj_pks_l, obj_aucs_l, obj_m02_l = compute_trial_metrics(rel_time, peth_obj_l)
     obj_pks_r, obj_aucs_r, obj_m02_r = compute_trial_metrics(rel_time, peth_obj_r)
 
-    # 4. Compute bout-indexed spectral coherence
+    # 4. Compute bout-indexed spectral coherence on uniform 30.0 Hz grid
     freqs_soc, coh_soc_pre, coh_soc_post, v_coh_soc_idx = compute_spectral_coherence_bouts(
-        time, ch1_z, ch2_z, soc_on, win_len=5.0, fs=actual_fs
+        time, ch1_z, ch2_z, soc_on, win_len=5.0, fs=fs_nominal
     )
 
     coh_by_bout = {}
@@ -150,8 +150,9 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
 
     # 6. Load 60 fps tracking data
     df_tr = load_tracking_csv(tracking_dir, age_group, mouse_id)
-    x_pts = df_tr["x_px"].dropna().values
-    y_pts = df_tr["y_px"].dropna().values
+    valid_xy = df_tr[["x_px", "y_px"]].dropna()
+    x_pts = valid_xy["x_px"].values
+    y_pts = valid_xy["y_px"].values
     speed = df_tr["speed_px_sec"].dropna().values
     dist_px = float(np.sum(np.sqrt(np.diff(x_pts) ** 2 + np.diff(y_pts) ** 2)))
 
@@ -291,6 +292,9 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
     return {
         "summary": m_summary,
         "trials": mouse_trials,
+        "time": time,
+        "ch1_z": ch1_z,
+        "ch2_z": ch2_z,
         "rel_time": rel_time,
         "peth_soc_l": peth_soc_l,
         "peth_soc_r": peth_soc_r,

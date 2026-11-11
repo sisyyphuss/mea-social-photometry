@@ -6,7 +6,7 @@ Computational pipeline for dual-channel fiber photometry, 3-chamber social track
 
 ## Key Results
 
-Analysis across 381 distinct sniffing bouts (235 social, 146 object; 0.30 s to 50.98 s, mean 5.60 s) shows a stimulus-selective medial amygdala (MeA) reactivity deficit in aged mice alongside preserved baseline inter-hemispheric synchrony and unchanged locomotion:
+Analysis across 381 distinct sniffing bouts (235 social, 146 object; 0.30 s to 50.98 s, mean 5.60 s) shows a stimulus-selective medial amygdala (MeA) reactivity deficit and blunted task-evoked inter-hemispheric coherence recruitment in aged mice despite unchanged locomotion:
 
 | Metric | Young ($n = 8$) | Old ($n = 10$) | Statistical Test | Interpretation |
 | :--- | :--- | :--- | :--- | :--- |
@@ -19,7 +19,7 @@ Analysis across 381 distinct sniffing bouts (235 social, 146 object; 0.30 s to 5
 | **Bout Offset Disengagement Delta Z** | $-0.289$ | $+0.056$ | Welch $p = 0.0014$ | Clean neural return-to-baseline lost in aged mice |
 | **Social vs Object `auROC` Decoding** | $0.640 \pm 0.085$ | $0.398 \pm 0.075$ | Welch $p = 0.0505$ / MW $p = 0.0409$ | Reduced trial-level social vs object selectivity |
 | **Lateralization Index (LI)** | $-0.151 \pm 0.122$ | $-0.066 \pm 0.161$ | Welch $p = 0.6821$ | Symmetric bilateral recruitment |
-| **Full Spectrum Coherence (0.1 to 3.0 Hz)** | $0.601 \pm 0.054$ | $0.582 \pm 0.039$ | Welch delta $p = 0.3382$ | High baseline bilateral synchrony across ages |
+| **Full Spectrum Coherence (0.1 to 3.0 Hz)** | $0.602 \pm 0.054$ | $0.581 \pm 0.040$ | Welch delta $p = 0.0099$ (0.8 to 1.6 Hz $p = 0.0464$) | Aged mice fail to recruit task-evoked bilateral coherence |
 | **Behavioral Social Preference Index (SPI)** | $0.122 \pm 0.240$ | $0.329 \pm 0.195$ | Welch $p = 0.5135$ | Intact chamber preference in both cohorts |
 | **Locomotor Distance (px)** | $30,850 \pm 5,224$ | $34,788 \pm 5,004$ | Welch $p = 0.5939$ | Locomotor confound ruled out |
 
@@ -27,11 +27,11 @@ Analysis across 381 distinct sniffing bouts (235 social, 146 object; 0.30 s to 5
 
 ## Methods Overview
 
-* **Motion Correction & Optical QC:** Ordinary least squares regression of 410 nm isosbestic control onto 470 nm fluorescence isolates calcium signals, removing velocity correlation (Young $r = 0.093$ to $-0.0004$; Old $r = 0.118$ to $0.0112$; paired drop $p = 0.0017$) with matched session SNR ($32.62 \pm 4.08$ vs $31.09 \pm 4.00$, $p = 0.7927$) and flat 410 nm PETH deflection (Young $-0.0809$, Old $-0.0086$).
+* **Motion Correction & Optical QC:** Ordinary least squares regression of 410 nm isosbestic control onto 470 nm fluorescence isolates calcium signals, removing velocity correlation (Young $r = 0.093$ to $0.0002$; Old $r = 0.118$ to $0.0111$; paired drop $p = 0.0020$) with matched session SNR ($32.62 \pm 4.08$ vs $31.09 \pm 4.00$, $p = 0.7927$) and flat 410 nm PETH deflection (Young $-0.0809$, Old $-0.0086$).
 * **Filtering & Resampling:** 2nd-order zero-phase Butterworth low-pass filter (3.0 Hz cutoff) with uniform 10 ms (`np.linspace`) interpolation for zero-millisecond onset drift at $t = 0.000\text{ s}$.
-* **Exact Bout Separation & Duration Normalization:** Exact prefix parsing prevents `Non-Social_Start` events from contaminating `Social_Start` bouts, isolating 235 social and 146 object bouts. Continuous trapezoidal integration normalizes whole-bout mean Z across variable bout durations (Young whole-bout correlation with duration $r = 0.003, p = 0.9769$ vs raw AUC $r = 0.161, p = 0.1077$).
+* **Exact Bout Separation & Duration Normalization:** Exact prefix parsing separates `Non-Social_Start` events cleanly from `Social_Start` bouts, isolating 235 social and 146 object bouts. Continuous trapezoidal integration normalizes whole-bout mean Z across variable bout durations (Young whole-bout correlation with duration $r = 0.003, p = 0.9769$ vs raw AUC $r = 0.161, p = 0.1077$).
 * **Mixed-Effects, Jackknife & Permutation Testing:** Trial-level linear mixed models (`~ Age + Bout + Duration + (1 | Mouse_ID)` across all 235 social trials), Mann-Whitney U, bias-corrected Hedges' $g$, 18-fold leave-one-mouse-out (LOMO) jackknife, and consecutive-threshold PETH permutation windows ($\ge 0.2\text{ s}$ at $p < 0.05$: `-0.23 to +0.03 s`, `+0.53 to +0.83 s`, and `+1.43 to +2.50 s`).
-* **Transients, Selectivity & Behavior:** MAD-thresholded discrete calcium burst rates (total, basal outside bouts, and social-evoked), single-trial `auROC` discrimination, duration stratification ($< 3\text{ s}$ vs $\ge 3\text{ s}$), bout offset disengagement, chamber entry controls ($p = 0.3000$), and zero-lag bilateral cross-correlation ($p = 0.376$).
+* **Transients, Selectivity & Behavior:** MAD-thresholded discrete calcium burst rates (total, basal outside bouts, and social-evoked), single-trial `auROC` discrimination, duration stratification ($< 3\text{ s}$ vs $\ge 3\text{ s}$), bout offset disengagement, chamber entry controls ($p = 0.4733$), and zero-lag bilateral cross-correlation ($p = 0.362$).
 
 ---
 

@@ -5,7 +5,7 @@ Extended Statistical & Quality Control Report
    - Session SNR:           Young 32.62 +/- 4.08 vs Old 31.09 +/- 4.00 (p = 0.7927)
    - 410 nm PETH (0-2 s):   Young -0.0809 vs Old -0.0086
    - Speed-Signal r (Raw):  Young 0.0932 | Old 0.1184
-   - Speed-Signal r (Corr): Young -0.0004 | Old 0.0112 (Paired drop p = 0.0017)
+   - Speed-Signal r (Corr): Young 0.0002 | Old 0.0111 (Paired drop p = 0.0020)
    - Object Peak Control:   Young 1.310 +/- 0.132 vs Old 1.460 +/- 0.357 (p = 0.7006)
 
 2. NON-PARAMETRIC, HEDGES' g, & 18-FOLD LEAVE-ONE-MOUSE-OUT (JACKKNIFE):
@@ -32,7 +32,7 @@ Extended Statistical & Quality Control Report
    - Single-Trial auROC (Social vs Obj): Young 0.640 +/- 0.085 vs Old 0.398 +/- 0.075 (Welch p = 0.0505, MW p = 0.0409)
    - Short (<3s) Bouts Peak Z:          Young 1.707 vs Old 1.035 (p = 0.0396)
    - Long (>=3s) Bouts Peak Z:          Young 1.833 vs Old 0.828 (p = 0.0074)
-   - Chamber Entry (Novel Mouse 0-2s):  Young -0.011 vs Old 0.242 (p = 0.3000)
+   - Chamber Entry (Novel Mouse 0-2s):  Young -0.002 vs Old 0.147 (p = 0.4733)
    - Bout Offset Disengagement Delta:   Young -0.289 vs Old 0.056 (p = 0.0014)
    - Early vs Late Habituation (Peak):  Young p = 0.6045 | Old p = 0.0554
    - Brain-Behavior (0-2s vs SPI):      Young r = 0.183 (p = 0.6652) | Old r = -0.584 (p = 0.0763)

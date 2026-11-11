@@ -8,8 +8,9 @@ from scipy.signal import coherence
 
 def compute_spectral_coherence_bouts(time, z_left, z_right, onsets, win_len=5.0, fs=30.0):
     """Compute magnitude-squared coherence between Left and Right MeA during baseline vs interaction."""
-    nperseg = int(fs * 2.5)  # 75 points for ~0.4 Hz resolution
-    noverlap = nperseg // 2
+    n_win = int(round(win_len * fs))
+    nperseg = int(round(fs * 2.5))  # 75 points for exact 0.4 Hz frequency resolution
+    noverlap = int(np.ceil(nperseg / 2))  # 38 points -> 3 symmetric Welch segments across 150 samples
 
     pre_cohs, post_cohs = [], []
     valid_bouts = []
@@ -21,14 +22,14 @@ def compute_spectral_coherence_bouts(time, z_left, z_right, onsets, win_len=5.0,
         if t_pre_start < time[0] or t_post_end > time[-1]:
             continue
 
-        mask_pre = (time >= t_pre_start) & (time < o)
-        mask_post = (time >= o) & (time < t_post_end)
+        # Resample onto a uniform fs grid so FFT bins match exactly across mice
+        t_pre = np.linspace(t_pre_start, o, n_win, endpoint=False)
+        t_post = np.linspace(o, t_post_end, n_win, endpoint=False)
 
-        sig_l_pre, sig_r_pre = z_left[mask_pre], z_right[mask_pre]
-        sig_l_post, sig_r_post = z_left[mask_post], z_right[mask_post]
-
-        if len(sig_l_pre) < nperseg or len(sig_l_post) < nperseg:
-            continue
+        sig_l_pre = np.interp(t_pre, time, z_left)
+        sig_r_pre = np.interp(t_pre, time, z_right)
+        sig_l_post = np.interp(t_post, time, z_left)
+        sig_r_post = np.interp(t_post, time, z_right)
 
         freqs, c_pre = coherence(sig_l_pre, sig_r_pre, fs=fs, nperseg=nperseg, noverlap=noverlap)
         _, c_post = coherence(sig_l_post, sig_r_post, fs=fs, nperseg=nperseg, noverlap=noverlap)

@@ -24,14 +24,14 @@ Statistical Report: Bilateral Medial Amygdala Photometry & Coherence in Aging
 
 3. INTER-HEMISPHERIC SPECTRAL COHERENCE (0.1 to 3.0 Hz):
    A. Full Spectrum (0.1 to 3.0 Hz):
-      - Young Social Coherence:      0.601 +/- 0.054
-      - Old Social Coherence:        0.582 +/- 0.039
-      - Welch's t-test on Delta:     t = 0.987, p = 0.3382
+      - Young Social Coherence:      0.602 +/- 0.054
+      - Old Social Coherence:        0.581 +/- 0.040
+      - Welch's t-test on Delta:     t = 2.940, p = 0.0099
 
    B. Low-Frequency Band (0.8 to 1.6 Hz):
-      - Young Delta:                 0.004 +/- 0.027
-      - Old Delta:                   -0.062 +/- 0.027
-      - Welch's t-test on Delta:     t = 1.742, p = 0.1011
+      - Young Delta:                 0.040 +/- 0.018
+      - Old Delta:                   -0.011 +/- 0.015
+      - Welch's t-test on Delta:     t = 2.174, p = 0.0464
 
 4. BEHAVIORAL SOCIAL PREFERENCE INDEX (SPI):
    - Young SPI:           0.122 +/- 0.240

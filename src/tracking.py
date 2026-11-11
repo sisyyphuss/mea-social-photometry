@@ -10,8 +10,9 @@ from scipy.ndimage import gaussian_filter
 def load_tracking_data(tracking_csv, fps=60.0):
     """Load tracking CSV and compute total locomotor distance, compartment dwell times, and SPI."""
     df_tr = pd.read_csv(tracking_csv)
-    x_pts = df_tr["x_px"].dropna().values
-    y_pts = df_tr["y_px"].dropna().values
+    valid_xy = df_tr[["x_px", "y_px"]].dropna()
+    x_pts = valid_xy["x_px"].values
+    y_pts = valid_xy["y_px"].values
 
     total_dist_px = float(np.sum(np.sqrt(np.diff(x_pts) ** 2 + np.diff(y_pts) ** 2)))
     stim = df_tr["compartment_stimulus"].values

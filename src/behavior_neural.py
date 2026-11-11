@@ -5,7 +5,7 @@ Stimulus selectivity (auROC), bout stratification, offset/zone-entry dynamics, a
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
-from scipy.stats import ttest_ind, ttest_rel, pearsonr
+from scipy.stats import pearsonr
 
 
 def compute_social_object_auroc(df_trials):
@@ -72,7 +72,7 @@ def compute_offset_and_zone_entry(time_phot, z_l, z_r, soc_offsets, df_tr):
             off_traces.append(iz - pre)
 
     t_tr = df_tr["video_time_sec"].values
-    z_tr = (df_tr["CH1_z"].values + df_tr["CH2_z"].values) / 2.0
+    z_tr = np.interp(t_tr, time_phot, z_bi)
     comp = df_tr["compartment_stimulus"].values
     rel_z = np.linspace(-2.0, 4.0, 361)
 
@@ -99,17 +99,25 @@ def compute_offset_and_zone_entry(time_phot, z_l, z_r, soc_offsets, df_tr):
     }
 
 
-def compute_lagged_crosscorr(df_tr, max_lag_s=2.0, fps=60.0):
-    """Compute time-lagged cross-correlation between Left and Right MeA over [-2s, +2s]."""
+def compute_lagged_crosscorr(time_phot, z_l, z_r, df_tr, max_lag_s=2.0, fps=60.0):
+    """Compute non-wrapping time-lagged Pearson cross-correlation between Left and Right MeA."""
     max_frames = int(round(max_lag_s * fps))
     lags_s = np.arange(-max_frames, max_frames + 1) / fps
 
-    l = df_tr["CH1_z"].fillna(0).values
-    r = df_tr["CH2_z"].fillna(0).values
-    l = (l - np.mean(l)) / (np.std(l) + 1e-9)
-    r = (r - np.mean(r)) / (np.std(r) + 1e-9)
+    t_tr = df_tr["video_time_sec"].values
+    l = np.interp(t_tr, time_phot, z_l)
+    r = np.interp(t_tr, time_phot, z_r)
 
-    xc = np.array([np.mean(np.roll(l, k) * r) for k in range(-max_frames, max_frames + 1)])
+    xc = []
+    for k in range(-max_frames, max_frames + 1):
+        if k > 0:
+            x, y = l[:-k], r[k:]
+        elif k < 0:
+            x, y = l[-k:], r[:k]
+        else:
+            x, y = l, r
+        xc.append(float(np.corrcoef(x, y)[0, 1]))
+    xc = np.array(xc)
     pk_idx = int(np.argmax(xc))
 
     return {

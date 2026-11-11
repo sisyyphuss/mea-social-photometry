@@ -100,10 +100,10 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
             peth_410[grp].append(qc_res["iso_mean_trace"])
 
             df_tr = load_tracking_csv(tracking_dir, grp, mid)
-            spd_res = compute_speed_coupling(df_tr, time, qc_res["f470_l"], qc_res["f470_r"])
+            spd_res = compute_speed_coupling(df_tr, time, qc_res["f470_l"], qc_res["f470_r"], z_l, z_r)
             trans_res = detect_transients(time, z_l, z_r, soc_on, soc_dur, fs=actual_fs)
             off_zone_res = compute_offset_and_zone_entry(time, z_l, z_r, soc_offsets, df_tr)
-            xc_res = compute_lagged_crosscorr(df_tr, max_lag_s=2.0, fps=60.0)
+            xc_res = compute_lagged_crosscorr(time, z_l, z_r, df_tr, max_lag_s=2.0, fps=60.0)
 
             offset_waves[grp].append(off_zone_res["offset_mean_trace"])
             lags_s = xc_res["lags_s"]

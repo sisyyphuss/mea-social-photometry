@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from scipy.stats import ttest_ind, ttest_rel, sem
+from scipy.stats import ttest_ind, sem
 from scipy.ndimage import gaussian_filter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -58,6 +58,7 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
         "Old": {"freqs": None, "spectrum_pre": [], "spectrum_post": [], "post_full": [], "delta_full": [], "delta_std": []},
     }
     rel_time = None
+    rep_303 = None
 
     for age_group, mouse_list in [("Young", young_ids), ("Old", old_ids)]:
         for mouse_id in mouse_list:
@@ -71,6 +72,8 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
                 output_dir=target_indiv_dir,
                 generate_plots=True,
             )
+            if mouse_id == "303" and age_group == "Young":
+                rep_303 = res
 
             all_mouse_summaries.append(res["summary"])
             all_trial_records.extend(res["trials"])
@@ -313,9 +316,11 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
     plt.close(fig4)
 
     # Figure 5: Spatial Neural Mapping (Representative Mouse 303 with exact arena pixel bounds)
-    df_s = load_tracking_csv(tracking_dir, "Young", "303").dropna(subset=["x_px", "y_px", "CH1_z", "CH2_z"])
+    df_s = load_tracking_csv(tracking_dir, "Young", "303").dropna(subset=["x_px", "y_px", "video_time_sec"])
     xs, ys = df_s["x_px"].values, df_s["y_px"].values
-    zl, zr = df_s["CH1_z"].values, df_s["CH2_z"].values
+    t_s = df_s["video_time_sec"].values
+    zl = np.interp(t_s, rep_303["time"], rep_303["ch1_z"])
+    zr = np.interp(t_s, rep_303["time"], rep_303["ch2_z"])
 
     h_l, _, _ = np.histogram2d(xs, ys, bins=[60, 40], weights=np.maximum(0, zl))
     h_r, _, _ = np.histogram2d(xs, ys, bins=[60, 40], weights=np.maximum(0, zr))

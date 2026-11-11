@@ -71,21 +71,21 @@ def compute_optical_qc(
     }
 
 
-def compute_speed_coupling(df_tr, time_phot, f470_l, f470_r):
+def compute_speed_coupling(df_tr, time_phot, f470_l, f470_r, z_l, z_r):
     """Compare speed correlation before (raw 470 nm) vs after (410 nm corrected Z) regression."""
     t_tr = df_tr["video_time_sec"].values
     spd = df_tr["speed_px_sec"].values
-    z1_tr = df_tr["CH1_z"].values
-    z2_tr = df_tr["CH2_z"].values
 
     raw1_interp = np.interp(t_tr, time_phot, f470_l)
     raw2_interp = np.interp(t_tr, time_phot, f470_r)
+    z1_interp = np.interp(t_tr, time_phot, z_l)
+    z2_interp = np.interp(t_tr, time_phot, z_r)
 
-    valid = ~(np.isnan(spd) | np.isnan(z1_tr) | np.isnan(z2_tr))
+    valid = ~(np.isnan(spd) | np.isnan(t_tr))
     r_raw_l, _ = pearsonr(spd[valid], raw1_interp[valid])
     r_raw_r, _ = pearsonr(spd[valid], raw2_interp[valid])
-    r_cor_l, _ = pearsonr(spd[valid], z1_tr[valid])
-    r_cor_r, _ = pearsonr(spd[valid], z2_tr[valid])
+    r_cor_l, _ = pearsonr(spd[valid], z1_interp[valid])
+    r_cor_r, _ = pearsonr(spd[valid], z2_interp[valid])
 
     return {
         "speed_r_raw470": round(float((r_raw_l + r_raw_r) / 2.0), 4),
