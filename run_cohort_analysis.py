@@ -22,39 +22,6 @@ from src.visualization import set_publication_style, save_figure, COLOR_LEFT, CO
 from analyze_mouse import process_single_mouse
 
 
-def generate_single_mouse_script(mouse_id, age_group, target_dir):
-    """Write a clean standalone launcher script inside each animal directory."""
-    script_content = f'''"""
-Photometry, Tracking, and Spectral Coherence Analysis for Mouse {mouse_id} ({age_group})
-
-Usage:
-    python analyze_Mouse_{mouse_id}.py
-"""
-
-import os
-import sys
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
-if os.path.exists(os.path.join(REPO_ROOT, "analyze_mouse.py")):
-    sys.path.insert(0, REPO_ROOT)
-    from analyze_mouse import process_single_mouse
-else:
-    raise FileNotFoundError("Place this folder inside the mea-social-photometry repository to execute.")
-
-
-def main():
-    process_single_mouse(mouse_id="{mouse_id}", age_group="{age_group}", output_dir=HERE, generate_plots=True)
-    print("Analysis complete for Mouse {mouse_id} ({age_group}).")
-
-
-if __name__ == "__main__":
-    main()
-'''
-    with open(os.path.join(target_dir, f"analyze_Mouse_{mouse_id}.py"), "w", encoding="utf-8") as f:
-        f.write(script_content)
-
-
 def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
     set_publication_style()
     rng = np.random.default_rng(42)
@@ -104,7 +71,6 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
                 output_dir=target_indiv_dir,
                 generate_plots=True,
             )
-            generate_single_mouse_script(mouse_id, age_group, target_indiv_dir)
 
             all_mouse_summaries.append(res["summary"])
             all_trial_records.extend(res["trials"])

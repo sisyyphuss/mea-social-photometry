@@ -64,7 +64,7 @@ mea-social-photometry/
 │   ├── figures/                          # Figures 1-10 in PNG (300 dpi) and PDF
 │   ├── tables/                           # Master datasets, LMM, LOMO, and statistical reports
 │   ├── cohorts/                          # Young and Old cohort summary plots and tables
-│   └── individual/                       # 18 individual animal folders (8 files per animal)
+│   └── individual/                       # 18 individual animal folders (7 files per animal)
 ├── requirements.txt                      # Python dependencies
 ├── LICENSE                               # MIT License
 └── README.md
@@ -110,13 +110,6 @@ python verify_pipeline.py
 
 ```bash
 python analyze_mouse.py --mouse_id 303 --age_group Young
-```
-
-Or run any animal's standalone launcher from inside its folder:
-
-```bash
-cd results/individual/Young/Mouse_303
-python analyze_Mouse_303.py
 ```
 
 ---

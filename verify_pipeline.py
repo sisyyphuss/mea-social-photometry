@@ -38,6 +38,8 @@ def run_verification(results_dir=None):
         "mouse_summary.json",
     ]
     missing = []
+    stray = []
+    expected_set = set(expected_indiv_files)
     for grp, ids in [("Young", young_ids), ("Old", old_ids)]:
         for mid in ids:
             mdir = os.path.join(results_dir, "individual", grp, f"Mouse_{mid}")
@@ -48,13 +50,14 @@ def run_verification(results_dir=None):
                 fp = os.path.join(mdir, f)
                 if not os.path.exists(fp) or os.path.getsize(fp) == 0:
                     missing.append(fp)
-            s_fp = os.path.join(mdir, f"analyze_Mouse_{mid}.py")
-            if not os.path.exists(s_fp) or os.path.getsize(s_fp) == 0:
-                missing.append(s_fp)
+            for actual in os.listdir(mdir):
+                if actual not in expected_set:
+                    stray.append(os.path.join(mdir, actual))
 
-    total_checked = (len(young_ids) + len(old_ids)) * (len(expected_indiv_files) + 1)
+    total_checked = (len(young_ids) + len(old_ids)) * len(expected_indiv_files)
     assert len(missing) == 0, f"Missing or empty files: {missing}"
-    print(f"PASS 1 RESULT: 100% COMPLETE (18/18 mice, {total_checked}/{total_checked} files valid)")
+    assert len(stray) == 0, f"Unexpected stale or duplicate files found: {stray}"
+    print(f"PASS 1 RESULT: 100% COMPLETE (18/18 mice, {total_checked}/{total_checked} files valid, 0 stray files)")
 
     # PASS 2: Trial Integrity & Zero Cross-Stimulus Contamination
     print("\n--- PASS 2: Behavioral Trials & Uncontaminated Separation ---")
@@ -174,16 +177,20 @@ def run_verification(results_dir=None):
         assert os.path.exists(ef) and os.path.getsize(ef) > 0, f"Missing artifact: {ef}"
     print(f"PASS 6 RESULT: 100% REPRODUCED (All {len(expected_figs)} cohort files verified)")
 
-    # PASS 7: Standalone Animal Script Syntax
-    print("\n--- PASS 7: Individual Mouse Script Syntax & Executability ---")
-    script_count = 0
-    for grp, ids in [("Young", young_ids), ("Old", old_ids)]:
-        for mid in ids:
-            s_fp = os.path.join(results_dir, "individual", grp, f"Mouse_{mid}", f"analyze_Mouse_{mid}.py")
-            with open(s_fp, "r", encoding="utf-8") as sf:
-                ast.parse(sf.read())
-            script_count += 1
-    print(f"PASS 7 RESULT: 100% VERIFIED ({script_count} standalone scripts syntactically valid)")
+    # PASS 7: Core Pipeline & Module Script Syntax
+    print("\n--- PASS 7: Pipeline & Module Script Syntax ---")
+    script_files = [
+        os.path.join(base_dir, name)
+        for name in ["run_all.py", "run_cohort_analysis.py", "run_extended_analysis.py", "analyze_mouse.py", "verify_pipeline.py"]
+    ]
+    src_dir = os.path.join(base_dir, "src")
+    script_files.extend(
+        os.path.join(src_dir, fn) for fn in sorted(os.listdir(src_dir)) if fn.endswith(".py")
+    )
+    for s_fp in script_files:
+        with open(s_fp, "r", encoding="utf-8") as sf:
+            ast.parse(sf.read())
+    print(f"PASS 7 RESULT: 100% VERIFIED ({len(script_files)} core pipeline and module scripts valid)")
 
     # PASS 8: Extended QC, LMM, Transients & Figures 7-10
     print("\n--- PASS 8: Extended Optical QC, LMM, Transients & Figures 7-10 ---")
