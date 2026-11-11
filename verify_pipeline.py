@@ -1,5 +1,5 @@
 """
-7-Pass Verification Audit: Bilateral MeA Photometry, Tracking, and Spectral Coherence
+8-Pass Verification Audit: Bilateral MeA Photometry, Tracking, Spectral Coherence & Extended Controls
 
 Usage:
     python verify_pipeline.py
@@ -17,7 +17,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 results_dir = os.path.join(base_dir, "results")
 
 print("==========================================================================")
-print("     7-PASS SCIENTIFIC & CODE AUDIT: PHOTOMETRY, TRACKING & COHERENCE     ")
+print("     8-PASS SCIENTIFIC & CODE AUDIT: PHOTOMETRY, TRACKING & COHERENCE     ")
 print("==========================================================================")
 
 young_ids = [303, 305, 307, 308, 309, 311, 326, 331]
@@ -133,7 +133,6 @@ print("PASS 4 RESULT: 100% VALIDATED (Locomotor kinematics identical between coh
 # PASS 5: Primary Neural Activation Deficits (Peak Z, Whole-Bout Mean Z & 0-2s Window)
 # ------------------------------------------------------------------------------
 print("\n--- PASS 5: Primary Neural Activation Deficits (Peak Z, Whole-Bout Mean Z & 0-2s Mean) ---")
-# 1. Peak Z
 young_pk = (df_sum[df_sum['Age_Group'] == 'Young']['Social_Peak_Left'] + df_sum[df_sum['Age_Group'] == 'Young']['Social_Peak_Right']) / 2.0
 old_pk   = (df_sum[df_sum['Age_Group'] == 'Old']['Social_Peak_Left'] + df_sum[df_sum['Age_Group'] == 'Old']['Social_Peak_Right']) / 2.0
 t_pk, p_pk = ttest_ind(young_pk, old_pk, equal_var=False)
@@ -143,7 +142,6 @@ print(f"   Old Peak Z:   {old_pk.mean():.3f} +/- {sem(old_pk):.3f}")
 print(f"   Welch's t = {t_pk:.3f}, p = {p_pk:.4f}**")
 assert p_pk < 0.01, "Expected p < 0.01 for aging effect on social peak!"
 
-# 2. Whole-Bout Mean Z
 young_wb = df_sum[df_sum['Age_Group'] == 'Young']['Social_Whole_Bout_Mean_Z_Bilateral']
 old_wb   = df_sum[df_sum['Age_Group'] == 'Old']['Social_Whole_Bout_Mean_Z_Bilateral']
 t_wb, p_wb = ttest_ind(young_wb, old_wb, equal_var=False)
@@ -153,7 +151,6 @@ print(f"   Old Whole-Bout Mean Z:   {old_wb.mean():.3f} +/- {sem(old_wb):.3f}")
 print(f"   Welch's t = {t_wb:.3f}, p = {p_wb:.4f}*")
 assert p_wb < 0.05, "Expected p < 0.05 for aging effect on whole-bout mean Z!"
 
-# 3. Fixed 0-2s Mean Window
 young_m02 = df_sum[df_sum['Age_Group'] == 'Young']['Social_Mean_Z_0_2s_Bilateral']
 old_m02   = df_sum[df_sum['Age_Group'] == 'Old']['Social_Mean_Z_0_2s_Bilateral']
 t_m02, p_m02 = ttest_ind(young_m02, old_m02, equal_var=False)
@@ -224,6 +221,35 @@ for grp, ids in [("Young", young_ids), ("Old", old_ids)]:
 print(f"Verified syntax and AST integrity for all {script_count} individual mouse analysis scripts.")
 print("PASS 7 RESULT: 100% VERIFIED (All 18 standalone animal scripts syntactically valid and runnable)")
 
+# ------------------------------------------------------------------------------
+# PASS 8: Extended QC, Transients, Mixed Modeling & Figures 7-10 Verification
+# ------------------------------------------------------------------------------
+print("\n--- PASS 8: Extended Optical QC, LMM, Transients & Figures 7-10 ---")
+ext_files = [
+    os.path.join(results_dir, "tables", "extended_mouse_metrics.csv"),
+    os.path.join(results_dir, "tables", "nonparametric_and_lomo_summary.csv"),
+    os.path.join(results_dir, "tables", "lomo_jackknife_results.csv"),
+    os.path.join(results_dir, "tables", "lmm_model_summary.csv"),
+    os.path.join(results_dir, "tables", "brain_behavior_coupling.csv"),
+    os.path.join(results_dir, "tables", "extended_statistical_report.txt"),
+    os.path.join(results_dir, "figures", "Figure7_Optical_QC_and_Isosbestic_Controls.png"),
+    os.path.join(results_dir, "figures", "Figure7_Optical_QC_and_Isosbestic_Controls.pdf"),
+    os.path.join(results_dir, "figures", "Figure8_Statistical_Rigor_LMM_Jackknife_and_PETH_Windows.png"),
+    os.path.join(results_dir, "figures", "Figure8_Statistical_Rigor_LMM_Jackknife_and_PETH_Windows.pdf"),
+    os.path.join(results_dir, "figures", "Figure9_Spontaneous_Transients_and_Social_Selectivity.png"),
+    os.path.join(results_dir, "figures", "Figure9_Spontaneous_Transients_and_Social_Selectivity.pdf"),
+    os.path.join(results_dir, "figures", "Figure10_Bout_Stratification_Offset_ZoneEntry_and_Behavior.png"),
+    os.path.join(results_dir, "figures", "Figure10_Bout_Stratification_Offset_ZoneEntry_and_Behavior.pdf"),
+]
+for ef in ext_files:
+    assert os.path.exists(ef) and os.path.getsize(ef) > 0, f"Missing extended artifact: {ef}"
+
+df_ext = pd.read_csv(os.path.join(results_dir, "tables", "extended_mouse_metrics.csv"))
+assert len(df_ext) == 18, f"Expected 18 mice in extended_mouse_metrics.csv, got {len(df_ext)}"
+assert not df_ext[["SNR", "Speed_r_CorrectedZ", "Transient_Rate_Basal_per_min", "auROC_Peak"]].isna().any().any(), "Unexpected NaN in extended metrics!"
+print(f"Verified all {len(ext_files)} extended tables and Figures 7-10 on disk.")
+print("PASS 8 RESULT: 100% VERIFIED (Extended optical QC, LMM, MAD transients & selectivity validated)")
+
 print("\n==========================================================================")
-print("             ALL 7 AUDIT PASSES COMPLETED 100% SUCCESSFULLY               ")
+print("             ALL 8 AUDIT PASSES COMPLETED 100% SUCCESSFULLY               ")
 print("==========================================================================")

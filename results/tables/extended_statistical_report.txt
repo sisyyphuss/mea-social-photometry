@@ -1,0 +1,39 @@
+========================================================================================
+EXTENDED STATISTICAL & QUALITY CONTROL REPORT
+========================================================================================
+
+1. OPTICAL QUALITY & ARTIFACT CONTROLS:
+   - Session SNR:           Young 32.62 +/- 4.08 vs Old 31.09 +/- 4.00 (p = 0.7927)
+   - 410 nm PETH (0-2 s):   Young -0.0589 vs Old -0.0206
+   - Speed-Signal r (Raw):  Young 0.0932 | Old 0.1184
+   - Speed-Signal r (Corr): Young -0.0004 | Old 0.0112 (Paired drop p = 0.0017)
+   - Object Peak Control:   Young 1.293 +/- 0.137 vs Old 1.457 +/- 0.356 (p = 0.6749)
+
+2. NON-PARAMETRIC, HEDGES' g, & 18-FOLD LEAVE-ONE-MOUSE-OUT (JACKKNIFE):
+   - Peak MeA Z (0-4 s): Mann-Whitney p = 0.0085 | Hedges' g = 1.503 | LOMO p in [0.0013, 0.0117] (18/18 drops p<0.05)
+   - Whole-Bout Mean Z: Mann-Whitney p = 0.0434 | Hedges' g = 1.093 | LOMO p in [0.0025, 0.0477] (18/18 drops p<0.05)
+   - Fixed 0-2 s Mean Z: Mann-Whitney p = 0.0434 | Hedges' g = 1.043 | LOMO p in [0.0036, 0.0680] (11/18 drops p<0.05)
+
+3. HIERARCHICAL LINEAR MIXED-EFFECTS MODEL (381 SOCIAL TRIALS, RANDOM MOUSE INTERCEPT):
+   - Peak MeA Z (0-4 s): Age Beta = -0.5095, SE = 0.1392, z = -3.659, p = 0.0003
+   - Whole-Bout Mean Z: Age Beta = -0.2839, SE = 0.1110, z = -2.558, p = 0.0105
+   - Fixed 0-2 s Mean Z: Age Beta = -0.2720, SE = 0.1103, z = -2.465, p = 0.0137
+   - Young AUC vs Duration:             r = 0.161, p = 0.029
+   - Young Whole-Bout Mean vs Duration: r = 0.047, p = 0.5301
+   - PETH Consecutive Divergence (>=0.2 s, p<0.05): [(-1.6, -1.233), (-0.267, 0.033), (0.133, 1.133)]
+
+4. SPONTANEOUS vs EVOKED CALCIUM TRANSIENT RATES (MAD THRESHOLD):
+   - Total Session Rate (/min):  Young 3.04 +/- 0.45 vs Old 1.48 +/- 0.36 (p = 0.0159)
+   - Basal Outside-Bout (/min):  Young 2.39 +/- 0.31 vs Old 1.30 +/- 0.27 (p = 0.0170)
+   - In-Social Evoked (/min):    Young 8.00 +/- 2.56 vs Old 1.96 +/- 0.61 (p = 0.0521)
+   - Peak Transient Amplitude:   Young 2.73 vs Old 3.53 (p = 0.1359)
+
+5. STIMULUS SELECTIVITY (auROC), DURATION STRATIFICATION & BEHAVIORAL DYNAMICS:
+   - Right MeA Paired Social vs Object: Young t = 2.422, p = 0.0460 | Old t = -1.098, p = 0.3008
+   - Single-Trial auROC (Social vs Obj): Young 0.591 +/- 0.051 vs Old 0.419 +/- 0.057 (t = 2.258, p = 0.0383)
+   - Short (<3s) Bouts Peak Z:          Young 1.372 vs Old 1.213 (p = 0.4062)
+   - Long (>=3s) Bouts Peak Z:          Young 1.763 vs Old 0.802 (p = 0.0018)
+   - Chamber Entry (Novel Mouse 0-2s):  Young -0.011 vs Old 0.243 (p = 0.2986)
+   - Bout Offset Disengagement Delta:   Young -0.236 vs Old 0.089 (p = 0.0021)
+   - Early vs Late Habituation (Peak):  Young p = 0.5328 | Old p = 0.0581
+   - Brain-Behavior (0-2s vs Dwell):    Young r = 0.326 (p = 0.4308) | Old r = -0.638 (p = 0.0472)

@@ -1,0 +1,10 @@
+Outcome,Predictor,Beta,SE,CI_Low,CI_High,z_stat,p_value
+Peak MeA Z (0-4 s),Is_Old,-0.5095,0.1392,-0.7824,-0.2366,-3.659,0.0003
+Peak MeA Z (0-4 s),Bout,-0.0051,0.0065,-0.0177,0.0076,-0.787,0.4314
+Peak MeA Z (0-4 s),Duration_s,0.0109,0.0098,-0.0083,0.0301,1.116,0.2643
+Whole-Bout Mean Z,Is_Old,-0.2839,0.111,-0.5014,-0.0664,-2.558,0.0105
+Whole-Bout Mean Z,Bout,-0.002,0.0045,-0.0108,0.0067,-0.453,0.6505
+Whole-Bout Mean Z,Duration_s,0.0079,0.0067,-0.0053,0.021,1.171,0.2416
+Fixed 0-2 s Mean Z,Is_Old,-0.272,0.1103,-0.4882,-0.0557,-2.465,0.0137
+Fixed 0-2 s Mean Z,Bout,-0.0038,0.0046,-0.0128,0.0053,-0.815,0.4151
+Fixed 0-2 s Mean Z,Duration_s,0.01,0.007,-0.0036,0.0237,1.441,0.1495

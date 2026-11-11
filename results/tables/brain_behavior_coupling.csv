@@ -1,0 +1,9 @@
+Relationship,Cohort,Pearson_r,p_value
+Peak Z vs SPI,Young,0.665,0.0719
+Peak Z vs SPI,Old,-0.178,0.6236
+Peak Z vs Social Chamber Time,Young,0.481,0.2273
+Peak Z vs Social Chamber Time,Old,-0.632,0.05
+Whole-Bout Mean Z vs SPI,Young,0.318,0.443
+Whole-Bout Mean Z vs SPI,Old,-0.58,0.0789
+0-2 s Mean Z vs Social Chamber Time,Young,0.326,0.4308
+0-2 s Mean Z vs Social Chamber Time,Old,-0.638,0.0472
