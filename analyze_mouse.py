@@ -7,7 +7,6 @@ Usage:
 
 import os
 import sys
-import json
 import argparse
 import numpy as np
 import pandas as pd
@@ -53,7 +52,7 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
     _, ch1_z, ch1_fit = motion_correct_and_zscore(ch1_470_f, ch1_410_f)
     _, ch2_z, ch2_fit = motion_correct_and_zscore(ch2_470_f, ch2_410_f)
 
-    # 3. Extract pure Social and Non-Social bouts and PETH metrics
+    # 3. Extract Social and Non-Social bouts and compute PETH metrics
     soc_on, soc_dur, obj_on, obj_dur = extract_bouts_from_events(df_raw, time)
     fs_nominal = 30.0
     rel_time, peth_soc_l, wb_soc_l, v_peth_soc_idx = slice_peth(time, ch1_z, soc_on, soc_dur, 3.0, 6.0, fs_nominal)
@@ -66,7 +65,7 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
     obj_pks_l, obj_aucs_l, obj_m02_l = compute_trial_metrics(rel_time, peth_obj_l)
     obj_pks_r, obj_aucs_r, obj_m02_r = compute_trial_metrics(rel_time, peth_obj_r)
 
-    # 4. Spectral coherence indexed strictly by original bout index
+    # 4. Compute bout-indexed spectral coherence
     freqs_soc, coh_soc_pre, coh_soc_post, v_coh_soc_idx = compute_spectral_coherence_bouts(
         time, ch1_z, ch2_z, soc_on, win_len=5.0, fs=actual_fs
     )
@@ -93,29 +92,25 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
                 "std_del": round(float(np.mean(c_post[m_std]) - np.mean(c_pre[m_std])), 3),
             }
 
-    # 5. Build trial metrics table aligned strictly to original bout IDs
-    mouse_trials = []
-    soc_lis = []
-    for k, orig_idx in enumerate(v_peth_soc_idx):
-        li = calc_lateralization_index(soc_aucs_l[k], soc_aucs_r[k])
-        soc_lis.append(li)
-        c_info = coh_by_bout.get(orig_idx, {})
-        mouse_trials.append({
+    # 5. Build trial-level metrics table
+    def build_trial_row(stimulus, bout_num, duration, auc_l, auc_r, pk_l, pk_r, wb_l, wb_r, m02_l, m02_r, li, c_info=None):
+        c_info = c_info or {}
+        return {
             "Mouse_ID": mouse_id,
             "Age_Group": age_group,
-            "Stimulus": "Social",
-            "Bout": k + 1,
-            "Duration_s": round(float(soc_dur[orig_idx]), 2),
-            "Left_MeA_AUC": round(float(soc_aucs_l[k]), 3),
-            "Right_MeA_AUC": round(float(soc_aucs_r[k]), 3),
-            "Left_MeA_Peak_Z": round(float(soc_pks_l[k]), 3),
-            "Right_MeA_Peak_Z": round(float(soc_pks_r[k]), 3),
-            "Left_MeA_Whole_Bout_Mean_Z": round(float(wb_soc_l[k]), 3),
-            "Right_MeA_Whole_Bout_Mean_Z": round(float(wb_soc_r[k]), 3),
-            "Whole_Bout_Mean_Z_Bilateral": round(float((wb_soc_l[k] + wb_soc_r[k]) / 2.0), 3),
-            "Left_MeA_Mean_Z_0_2s": round(float(soc_m02_l[k]), 3),
-            "Right_MeA_Mean_Z_0_2s": round(float(soc_m02_r[k]), 3),
-            "Mean_Z_0_2s_Bilateral": round(float((soc_m02_l[k] + soc_m02_r[k]) / 2.0), 3),
+            "Stimulus": stimulus,
+            "Bout": bout_num,
+            "Duration_s": round(float(duration), 2),
+            "Left_MeA_AUC": round(float(auc_l), 3),
+            "Right_MeA_AUC": round(float(auc_r), 3),
+            "Left_MeA_Peak_Z": round(float(pk_l), 3),
+            "Right_MeA_Peak_Z": round(float(pk_r), 3),
+            "Left_MeA_Whole_Bout_Mean_Z": round(float(wb_l), 3),
+            "Right_MeA_Whole_Bout_Mean_Z": round(float(wb_r), 3),
+            "Whole_Bout_Mean_Z_Bilateral": round(float((wb_l + wb_r) / 2.0), 3),
+            "Left_MeA_Mean_Z_0_2s": round(float(m02_l), 3),
+            "Right_MeA_Mean_Z_0_2s": round(float(m02_r), 3),
+            "Mean_Z_0_2s_Bilateral": round(float((m02_l + m02_r) / 2.0), 3),
             "Lateralization_Index": round(float(li), 3),
             "Coherence_Full_0_1_3_0Hz_Base": c_info.get("full_pre", np.nan),
             "Coherence_Full_0_1_3_0Hz_Social": c_info.get("full_post", np.nan),
@@ -126,39 +121,30 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
             "Baseline_Coherence": c_info.get("std_pre", np.nan),
             "Interaction_Coherence": c_info.get("std_post", np.nan),
             "Coherence_Delta": c_info.get("std_del", np.nan),
-        })
+        }
+
+    mouse_trials = []
+    soc_lis = []
+    for k, orig_idx in enumerate(v_peth_soc_idx):
+        li = calc_lateralization_index(soc_aucs_l[k], soc_aucs_r[k])
+        soc_lis.append(li)
+        mouse_trials.append(build_trial_row(
+            "Social", k + 1, soc_dur[orig_idx],
+            soc_aucs_l[k], soc_aucs_r[k], soc_pks_l[k], soc_pks_r[k],
+            wb_soc_l[k], wb_soc_r[k], soc_m02_l[k], soc_m02_r[k],
+            li, coh_by_bout.get(orig_idx),
+        ))
 
     obj_lis = []
     for k, orig_idx in enumerate(v_peth_obj_idx):
         li = calc_lateralization_index(obj_aucs_l[k], obj_aucs_r[k])
         obj_lis.append(li)
-        mouse_trials.append({
-            "Mouse_ID": mouse_id,
-            "Age_Group": age_group,
-            "Stimulus": "NonSocial",
-            "Bout": k + 1,
-            "Duration_s": round(float(obj_dur[orig_idx]), 2),
-            "Left_MeA_AUC": round(float(obj_aucs_l[k]), 3),
-            "Right_MeA_AUC": round(float(obj_aucs_r[k]), 3),
-            "Left_MeA_Peak_Z": round(float(obj_pks_l[k]), 3),
-            "Right_MeA_Peak_Z": round(float(obj_pks_r[k]), 3),
-            "Left_MeA_Whole_Bout_Mean_Z": round(float(wb_obj_l[k]), 3),
-            "Right_MeA_Whole_Bout_Mean_Z": round(float(wb_obj_r[k]), 3),
-            "Whole_Bout_Mean_Z_Bilateral": round(float((wb_obj_l[k] + wb_obj_r[k]) / 2.0), 3),
-            "Left_MeA_Mean_Z_0_2s": round(float(obj_m02_l[k]), 3),
-            "Right_MeA_Mean_Z_0_2s": round(float(obj_m02_r[k]), 3),
-            "Mean_Z_0_2s_Bilateral": round(float((obj_m02_l[k] + obj_m02_r[k]) / 2.0), 3),
-            "Lateralization_Index": round(float(li), 3),
-            "Coherence_Full_0_1_3_0Hz_Base": np.nan,
-            "Coherence_Full_0_1_3_0Hz_Social": np.nan,
-            "Coherence_Full_0_1_3_0Hz_Delta": np.nan,
-            "Coherence_0_1_0_5Hz_Delta": np.nan,
-            "Coherence_0_5_1_5Hz_Delta": np.nan,
-            "Coherence_1_5_3_0Hz_Delta": np.nan,
-            "Baseline_Coherence": np.nan,
-            "Interaction_Coherence": np.nan,
-            "Coherence_Delta": np.nan,
-        })
+        mouse_trials.append(build_trial_row(
+            "NonSocial", k + 1, obj_dur[orig_idx],
+            obj_aucs_l[k], obj_aucs_r[k], obj_pks_l[k], obj_pks_r[k],
+            wb_obj_l[k], wb_obj_r[k], obj_m02_l[k], obj_m02_r[k],
+            li,
+        ))
 
     pd.DataFrame(mouse_trials).to_csv(os.path.join(output_dir, "trial_metrics.csv"), index=False)
 
@@ -262,9 +248,6 @@ def process_single_mouse(mouse_id, age_group, raw_source=None, tracking_dir=None
         "Chamber_Time_Object_s": round(time_obj_chamber, 1),
         "Behavioral_Social_Preference_Index": round(float(spi_beh), 3),
     }
-
-    with open(os.path.join(output_dir, "mouse_summary.json"), "w", encoding="utf-8") as jf:
-        json.dump(m_summary, jf, indent=2)
 
     if generate_plots:
         c_full_del_list = [v["full_del"] for v in coh_by_bout.values()]

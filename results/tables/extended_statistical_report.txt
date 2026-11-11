@@ -1,6 +1,5 @@
-========================================================================================
-EXTENDED STATISTICAL & QUALITY CONTROL REPORT
-========================================================================================
+Extended Statistical & Quality Control Report
+---------------------------------------------
 
 1. OPTICAL QUALITY & ARTIFACT CONTROLS:
    - Session SNR:           Young 32.62 +/- 4.08 vs Old 31.09 +/- 4.00 (p = 0.7927)

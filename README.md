@@ -45,23 +45,22 @@ mea-social-photometry/
 │   ├── peth.py                           # Exact prefix bout extraction, PETH slicing, trial metrics, LI
 │   ├── coherence.py                      # Multi-band inter-hemispheric spectral coherence
 │   ├── tracking.py                       # Coordinates, distance, dwell times, SPI, 2D heatmaps
-│   ├── qc.py                             # 410 nm control PETH, bleaching, SNR, velocity scrubbing
+│   ├── qc.py                             # 410 nm control PETH, bleaching, SNR, speed correlation
 │   ├── transients.py                     # MAD-thresholded spontaneous and evoked calcium burst rates
 │   ├── modeling.py                       # Linear mixed-effects models, LOMO jackknife, PETH windows
 │   ├── behavior_neural.py                # auROC decoding, stratification, offset, zone entry, xcorr
 │   └── visualization.py                  # Publication styles, atomic figure export, individual plots
-├── run_all.py                            # Single-command full pipeline + 8-pass verification runner
+├── run_all.py                            # Single-command full analysis pipeline
 ├── run_cohort_analysis.py                # Core cohort driver (Figures 1-6, tables, individual folders)
 ├── run_extended_analysis.py              # Extended QC, LMM, transients, selectivity (Figures 7-10)
 ├── analyze_mouse.py                      # CLI tool to process any single animal
-├── verify_pipeline.py                    # 8-pass scientific, schema, and output audit
 ├── data/
 │   └── README.md                         # Raw photometry & tracking layout instructions
 ├── results/
 │   ├── figures/                          # Figures 1-10 in PNG (300 dpi) and PDF
 │   ├── tables/                           # Master datasets, LMM, LOMO, and statistical reports
 │   ├── cohorts/                          # Young and Old cohort summary plots and tables
-│   └── individual/                       # 18 individual animal folders (7 files per animal)
+│   └── individual/                       # 18 individual animal folders (6 files per animal)
 ├── requirements.txt                      # Python dependencies
 ├── LICENSE                               # MIT License
 └── README.md
@@ -83,7 +82,7 @@ pip install -r requirements.txt
 
 Place `Data_2.zip` (or the extracted `Data_2/` folder) and `results_social/` inside `./data/` or `~/Downloads/`. See [data/README.md](data/README.md) for the exact folder layout, or pass custom paths explicitly via CLI flags (`--raw_zip`, `--tracking_dir`).
 
-### 3. Re-Run the Entire Pipeline & Verification in One Command
+### 3. Re-Run the Full Pipeline in One Command
 
 ```bash
 python run_all.py
@@ -100,7 +99,6 @@ To run individual steps manually:
 ```bash
 python run_cohort_analysis.py
 python run_extended_analysis.py
-python verify_pipeline.py
 ```
 
 ### 4. Analyze Any Single Animal
@@ -119,8 +117,8 @@ python analyze_mouse.py --mouse_id 303 --age_group Young
 * **Figure 4 | Behavioral Preference & Locomotor Kinematics:** Social Preference Index (SPI) and distance traveled controls ([PNG](results/figures/Figure4_Behavioral_SPI_and_Locomotion.png) | [PDF](results/figures/Figure4_Behavioral_SPI_and_Locomotion.pdf)).
 * **Figure 5 | 2D Spatial Neural Representation:** Spatial coordinate mapping of mean Left and Right MeA Z-scores ([PNG](results/figures/Figure5_Spatial_Neural_Mapping.png) | [PDF](results/figures/Figure5_Spatial_Neural_Mapping.pdf)).
 * **Figure 6 | Inter-Hemispheric Bilateral Spectral Coherence:** Coherence spectra across 0.1 to 3.0 Hz and sub-band deltas ([PNG](results/figures/Figure6_Bilateral_Spectral_Coherence_and_Aging.png) | [PDF](results/figures/Figure6_Bilateral_Spectral_Coherence_and_Aging.pdf)).
-* **Figure 7 | Optical Quality Controls:** 410 nm isosbestic control PETH, speed-artifact scrubbing, SNR, and object-response positive control ([PNG](results/figures/Figure7_Optical_QC_and_Isosbestic_Controls.png) | [PDF](results/figures/Figure7_Optical_QC_and_Isosbestic_Controls.pdf)).
-* **Figure 8 | Statistical Rigor:** Bootstrapped consecutive-threshold PETH windows, duration-bias removal, 18-fold LOMO jackknife, and trial-level LMM ([PNG](results/figures/Figure8_Statistical_Rigor_LMM_Jackknife_and_PETH_Windows.png) | [PDF](results/figures/Figure8_Statistical_Rigor_LMM_Jackknife_and_PETH_Windows.pdf)).
+* **Figure 7 | Optical Controls:** 410 nm isosbestic control PETH, motion-artifact speed correlation, SNR, and object-response positive control ([PNG](results/figures/Figure7_Optical_QC_and_Isosbestic_Controls.png) | [PDF](results/figures/Figure7_Optical_QC_and_Isosbestic_Controls.pdf)).
+* **Figure 8 | Mixed-Effects Modeling & Time Windows:** Bootstrapped consecutive-threshold PETH windows, duration normalization, 18-fold LOMO jackknife, and trial-level LMM ([PNG](results/figures/Figure8_Mixed_Effects_Jackknife_and_PETH_Windows.png) | [PDF](results/figures/Figure8_Mixed_Effects_Jackknife_and_PETH_Windows.pdf)).
 * **Figure 9 | Excitability, Selectivity & Cross-Correlation:** Basal vs social transient rates, single-trial `auROC`, and lagged bilateral cross-correlation ([PNG](results/figures/Figure9_Spontaneous_Transients_and_Social_Selectivity.png) | [PDF](results/figures/Figure9_Spontaneous_Transients_and_Social_Selectivity.pdf)).
 * **Figure 10 | Behavioral Specificity & Coupling:** Duration stratification, zone-entry vs bout offset, habituation, and brain-behavior coupling ([PNG](results/figures/Figure10_Bout_Stratification_Offset_ZoneEntry_and_Behavior.png) | [PDF](results/figures/Figure10_Bout_Stratification_Offset_ZoneEntry_and_Behavior.pdf)).
 

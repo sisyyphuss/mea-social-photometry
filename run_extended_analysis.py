@@ -153,9 +153,7 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     df_bb = compute_brain_behavior_coupling(df_sum)
     df_bb.to_csv(os.path.join(tables_dir, "brain_behavior_coupling.csv"), index=False)
 
-    # --------------------------------------------------------------------------
-    # FIGURE 7: Optical Quality Controls
-    # --------------------------------------------------------------------------
+    # Figure 7: Optical controls
     fig7, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15.5, 4.8))
 
     y470_m, y470_s = np.mean(peth_470["Young"], axis=0), sem(peth_470["Young"], axis=0)
@@ -194,7 +192,7 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     ax2.set_xlim(0.5, 2.5)
     ax2.set_ylabel("Pearson Correlation with Speed (r)")
     _, p_scrub = ttest_rel(df_ext["Speed_r_Raw470"], df_ext["Speed_r_CorrectedZ"])
-    ax2.set_title(f"B | Locomotor Motion-Artifact Scrubbing\n(Paired Reduction p = {p_scrub:.4f}{sig_stars(p_scrub)})", fontweight="bold")
+    ax2.set_title(f"B | Motion-Artifact Correction (Speed Correlation)\n(Paired Reduction p = {p_scrub:.4f}{sig_stars(p_scrub)})", fontweight="bold")
     ax2.legend(loc="upper right", frameon=False)
     ax2.grid(True, axis="y", linestyle=":", alpha=0.4)
 
@@ -227,15 +225,13 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     ax3.set_title(f"C | Signal Quality & Viral Gain Controls\n(SNR p = {p_snr:.2f} | Object Peak p = {p_obj:.2f}{', n.s.' if p_obj >= 0.05 else sig_stars(p_obj)})", fontweight="bold")
     ax3.grid(True, axis="y", linestyle=":", alpha=0.4)
 
-    fig7.suptitle("Figure 7 | Optical Quality Controls: Isosbestic Reference, Velocity Scrubbing & Signal Gain", fontweight="bold")
+    fig7.suptitle("Figure 7 | Optical Controls: Isosbestic Reference, Motion Correction & Signal Quality", fontweight="bold")
     plt.tight_layout()
     save_figure(fig7, os.path.join(figs_dir, "Figure7_Optical_QC_and_Isosbestic_Controls.png"), dpi=300)
     save_figure(fig7, os.path.join(figs_dir, "Figure7_Optical_QC_and_Isosbestic_Controls.pdf"))
     plt.close(fig7)
 
-    # --------------------------------------------------------------------------
-    # FIGURE 8: Statistical Rigor
-    # --------------------------------------------------------------------------
+    # Figure 8: Mixed-effects modeling, jackknife stability & time-window controls
     fig8, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(13.2, 9.6))
 
     ax1.plot(rel_time_peth, peth_div["y_mean"], color=COLOR_YOUNG, lw=2.2, label="Young Mean +/- 95% Boot CI")
@@ -269,7 +265,7 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     ax2.axhline(0, color="gray", linestyle="--", lw=0.8)
     ax2.set_xlabel("Social Bout Duration (s)")
     ax2.set_ylabel("Neural Response (AUC or Mean Z)")
-    ax2.set_title(f"B | Duration-Bias Elimination via Whole-Bout Normalization\n(Young Cohort, n = {len(y_soc_tr)} Social Bouts)", fontweight="bold")
+    ax2.set_title(f"B | Duration Normalization via Whole-Bout Mean Z\n(Young Cohort, n = {len(y_soc_tr)} Social Bouts)", fontweight="bold")
     ax2.legend(loc="upper right", frameon=False, fontsize=8.5)
     ax2.grid(True, linestyle=":", alpha=0.4)
 
@@ -312,15 +308,13 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     ax4.set_title(f"D | Hierarchical LMM Controlling for Mouse, Bout Order & Duration\n(n = {n_soc_trials} Social Bouts)", fontweight="bold")
     ax4.grid(True, axis="x", linestyle=":", alpha=0.4)
 
-    fig8.suptitle("Figure 8 | Statistical Rigor: Permutation Windows, Duration Independence, Jackknife & LMM", fontweight="bold")
+    fig8.suptitle("Figure 8 | Mixed-Effects Modeling, Jackknife Stability & Time-Window Controls", fontweight="bold")
     plt.tight_layout()
-    save_figure(fig8, os.path.join(figs_dir, "Figure8_Statistical_Rigor_LMM_Jackknife_and_PETH_Windows.png"), dpi=300)
-    save_figure(fig8, os.path.join(figs_dir, "Figure8_Statistical_Rigor_LMM_Jackknife_and_PETH_Windows.pdf"))
+    save_figure(fig8, os.path.join(figs_dir, "Figure8_Mixed_Effects_Jackknife_and_PETH_Windows.png"), dpi=300)
+    save_figure(fig8, os.path.join(figs_dir, "Figure8_Mixed_Effects_Jackknife_and_PETH_Windows.pdf"))
     plt.close(fig8)
 
-    # --------------------------------------------------------------------------
-    # FIGURE 9: Transients, auROC Discrimination & Cross-Correlation
-    # --------------------------------------------------------------------------
+    # Figure 9: Transients, auROC selectivity & cross-correlation
     fig9, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15.5, 4.8))
 
     y_basal = df_ext[df_ext["Age_Group"] == "Young"]["Transient_Rate_Basal_per_min"]
@@ -385,9 +379,7 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     save_figure(fig9, os.path.join(figs_dir, "Figure9_Spontaneous_Transients_and_Social_Selectivity.pdf"))
     plt.close(fig9)
 
-    # --------------------------------------------------------------------------
-    # FIGURE 10: Duration Stratification, Zone Entry, Offset & Behavioral Coupling
-    # --------------------------------------------------------------------------
+    # Figure 10: Bout stratification, zone entry, offset & behavioral coupling
     fig10, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(13.2, 9.6))
 
     y_sh = df_ext[df_ext["Age_Group"] == "Young"]["Short_Peak"].dropna()
@@ -490,9 +482,7 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
     save_figure(fig10, os.path.join(figs_dir, "Figure10_Bout_Stratification_Offset_ZoneEntry_and_Behavior.pdf"))
     plt.close(fig10)
 
-    # --------------------------------------------------------------------------
-    # Write Extended Statistical Report
-    # --------------------------------------------------------------------------
+    # Extended statistical report
     y_sub = df_sum[df_sum["Age_Group"] == "Young"]
     o_sub = df_sum[df_sum["Age_Group"] == "Old"]
     t_yr, p_yr = ttest_rel(y_sub["Social_Peak_Right"], y_sub["NonSocial_Peak_Right"])
@@ -507,9 +497,8 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
 
     rep_fp = os.path.join(tables_dir, "extended_statistical_report.txt")
     with open(rep_fp, "w", encoding="utf-8") as rf:
-        rf.write("========================================================================================\n")
-        rf.write("EXTENDED STATISTICAL & QUALITY CONTROL REPORT\n")
-        rf.write("========================================================================================\n\n")
+        rf.write("Extended Statistical & Quality Control Report\n")
+        rf.write("---------------------------------------------\n\n")
 
         rf.write("1. OPTICAL QUALITY & ARTIFACT CONTROLS:\n")
         rf.write(f"   - Session SNR:           Young {y_snr.mean():.2f} +/- {sem(y_snr):.2f} vs Old {o_snr.mean():.2f} +/- {sem(o_snr):.2f} (p = {p_snr:.4f})\n")
@@ -553,7 +542,7 @@ def run_extended(raw_zip=None, tracking_dir=None, results_dir=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extended Photometry & Behavioral Rigor Pipeline")
+    parser = argparse.ArgumentParser(description="Extended Photometry & Behavioral Analysis Pipeline")
     parser.add_argument("--raw_zip", type=str, default=None, help="Path to Data_2.zip or extracted Data_2 folder")
     parser.add_argument("--tracking_dir", type=str, default=None, help="Path to results_social tracking directory")
     parser.add_argument("--results_dir", type=str, default=None, help="Path to results directory")

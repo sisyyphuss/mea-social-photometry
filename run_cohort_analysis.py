@@ -100,9 +100,7 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
     df_all_summaries.to_csv(os.path.join(tables_dir, "master_per_mouse_summary.csv"), index=False)
     df_all_trials.to_csv(os.path.join(tables_dir, "master_all_trials_dataset.csv"), index=False)
 
-    # --------------------------------------------------------------------------
-    # COHORT SUMMARIES (Young & Old)
-    # --------------------------------------------------------------------------
+    # Cohort summaries (Young & Old)
     for age_group in ["Young", "Old"]:
         cdir = os.path.join(output_dir, "cohorts", age_group)
         os.makedirs(cdir, exist_ok=True)
@@ -176,10 +174,7 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
         save_figure(fig, os.path.join(cdir, f"{prefix}_spectral_coherence.png"), dpi=250)
         plt.close(fig)
 
-    # --------------------------------------------------------------------------
-    # GROUP COMPARISON PUBLICATION FIGURES (Figures 1 to 6)
-    # --------------------------------------------------------------------------
-    # Figure 1: Grand Average PETH
+    # Group figures (Figures 1 to 6)
     fig1, (ax1, ax2) = plt.subplots(1, 2, figsize=(11.5, 4.6), sharey=True)
 
     def render_cohort_cmp(axis, y_list, o_list, title):
@@ -417,20 +412,17 @@ def run_pipeline(raw_zip=None, tracking_dir=None, output_dir=None):
     save_figure(fig6, os.path.join(figs_dir, "Figure6_Bilateral_Spectral_Coherence_and_Aging.pdf"))
     plt.close(fig6)
 
-    # --------------------------------------------------------------------------
-    # STATISTICAL REPORT
-    # --------------------------------------------------------------------------
+    # Statistical summary report
     y_del_std = cohort_coherence["Young"]["delta_std"]
     o_del_std = cohort_coherence["Old"]["delta_std"]
     t_del_std, p_del_std = ttest_ind(y_del_std, o_del_std, equal_var=False)
 
     stat_report_fp = os.path.join(tables_dir, "statistical_report.txt")
     with open(stat_report_fp, "w", encoding="utf-8") as sf:
-        sf.write("========================================================================================\n")
-        sf.write("STATISTICAL REPORT: BILATERAL MEDIAL AMYGDALA PHOTOMETRY & COHERENCE DYNAMICS IN AGING\n")
-        sf.write("========================================================================================\n\n")
+        sf.write("Statistical Report: Bilateral Medial Amygdala Photometry & Coherence in Aging\n")
+        sf.write("-----------------------------------------------------------------------------\n\n")
 
-        sf.write("1. PRIMARY NEURAL ACTIVATION (UNCONTAMINATED SOCIAL BOUTS):\n")
+        sf.write("1. SOCIAL SNIFFING NEURAL ACTIVATION:\n")
         sf.write("   A. Social Sniffing Peak MeA Z-Score (0 to 4 s):\n")
         sf.write(f"      - Young Cohort (n=8):  {young_pks.mean():.3f} +/- {sem(young_pks):.3f} (Mean +/- SEM)\n")
         sf.write(f"      - Old Cohort (n=10):   {old_pks.mean():.3f} +/- {sem(old_pks):.3f} (Mean +/- SEM)\n")

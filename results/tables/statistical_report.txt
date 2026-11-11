@@ -1,8 +1,7 @@
-========================================================================================
-STATISTICAL REPORT: BILATERAL MEDIAL AMYGDALA PHOTOMETRY & COHERENCE DYNAMICS IN AGING
-========================================================================================
+Statistical Report: Bilateral Medial Amygdala Photometry & Coherence in Aging
+-----------------------------------------------------------------------------
 
-1. PRIMARY NEURAL ACTIVATION (UNCONTAMINATED SOCIAL BOUTS):
+1. SOCIAL SNIFFING NEURAL ACTIVATION:
    A. Social Sniffing Peak MeA Z-Score (0 to 4 s):
       - Young Cohort (n=8):  1.772 +/- 0.243 (Mean +/- SEM)
       - Old Cohort (n=10):   0.978 +/- 0.114 (Mean +/- SEM)
