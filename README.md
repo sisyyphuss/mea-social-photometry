@@ -4,73 +4,62 @@ Computational pipeline for dual-channel fiber photometry, 3-chamber social track
 
 ---
 
-## Key Results
+## Key results
 
-Analysis across 381 distinct sniffing bouts (235 social, 146 object; 0.30 s to 50.98 s, mean 5.60 s) shows a stimulus-selective medial amygdala (MeA) reactivity deficit and blunted task-evoked inter-hemispheric coherence recruitment in aged mice despite unchanged locomotion:
+Analysis across 381 sniffing bouts (235 social, 146 object; durations 0.30 s to 50.98 s, mean 5.60 s) shows an evoked medial amygdala (MeA) reactivity deficit and blunted inter-hemispheric coherence recruitment in aged mice despite unchanged locomotion:
 
-| Metric | Young ($n = 8$) | Old ($n = 10$) | Statistical Test | Interpretation |
+| Metric | Young ($n = 8$) | Old ($n = 10$) | Statistical Test | Finding |
 | :--- | :--- | :--- | :--- | :--- |
 | **Peak MeA Z-score (0 to 4 s)** | $1.772 \pm 0.243$ | $0.978 \pm 0.114$ | Welch $p = 0.0143$ / MW $p = 0.0155$ / LMM $p = 0.0010$ | Blunted evoked response in aging ($g = 1.430$, 18/18 LOMO) |
-| **Whole-Bout Mean Z (Duration-Normalized)** | $0.406 \pm 0.145$ | $-0.048 \pm 0.093$ | Welch $p = 0.0211$ / MW $p = 0.0117$ / LMM $p = 0.0032$ | Duration-independent aging deficit ($g = 1.238$, 18/18 LOMO) |
-| **Fixed 0 to +2 s Mean Z Window** | $0.469 \pm 0.157$ | $0.024 \pm 0.091$ | Welch $p = 0.0312$ / MW $p = 0.0266$ / LMM $p = 0.0045$ | Early social trigger deficit ($g = 1.163$, 11/18 LOMO) |
-| **Sustained ($\ge 3\text{ s}$) Bout Peak Z** | $1.833$ | $0.828$ | Welch $p = 0.0074$ | Sustained social engagement fails in aged mice |
-| **Short ($< 3\text{ s}$) Bout Peak Z** | $1.707$ | $1.035$ | Welch $p = 0.0396$ | Early transient deficit also present in brief bouts |
-| **Basal Transient Rate (Outside Bouts, /min)** | $2.50 \pm 0.27$ | $1.26 \pm 0.24$ | Welch $p = 0.0037$ | Spontaneous MeA hypoexcitability in aged mice |
-| **Bout Offset Disengagement Delta Z** | $-0.289$ | $+0.056$ | Welch $p = 0.0014$ | Clean neural return-to-baseline lost in aged mice |
-| **Social vs Object `auROC` Decoding** | $0.640 \pm 0.085$ | $0.398 \pm 0.075$ | Welch $p = 0.0505$ / MW $p = 0.0409$ | Reduced trial-level social vs object selectivity |
-| **Lateralization Index (LI)** | $-0.151 \pm 0.122$ | $-0.066 \pm 0.161$ | Welch $p = 0.6821$ | Symmetric bilateral recruitment |
+| **Whole-Bout Mean Z (Duration-Normalized)** | $0.406 \pm 0.145$ | $-0.048 \pm 0.093$ | Welch $p = 0.0211$ / MW $p = 0.0117$ / LMM $p = 0.0032$ | Activation deficit remains after duration normalization ($g = 1.238$) |
+| **Fixed 0 to +2 s Mean Z Window** | $0.469 \pm 0.157$ | $0.024 \pm 0.091$ | Welch $p = 0.0312$ / MW $p = 0.0266$ / LMM $p = 0.0045$ | Early sensory trigger deficit ($g = 1.163$, 11/18 LOMO) |
+| **Sustained ($\ge 3\text{ s}$) Bout Peak Z** | $1.833$ | $0.828$ | Welch $p = 0.0074$ | Deficit widens during sustained social contact |
+| **Short ($< 3\text{ s}$) Bout Peak Z** | $1.707$ | $1.035$ | Welch $p = 0.0396$ | Deficit also present in brief bouts |
+| **Basal Transient Rate (Outside Bouts, /min)** | $2.50 \pm 0.27$ | $1.26 \pm 0.24$ | Welch $p = 0.0037$ | Spontaneous basal hypoexcitability in aged mice |
+| **Bout Offset Disengagement Delta Z** | $-0.289$ | $+0.056$ | Welch $p = 0.0014$ | Fast neural reset upon disengagement lost in aged mice |
+| **Social vs Object `auROC` Decoding** | $0.640 \pm 0.085$ | $0.398 \pm 0.075$ | Welch $p = 0.0505$ / MW $p = 0.0409$ | Loss of single-trial social vs object selectivity |
+| **Lateralization Index (LI)** | $-0.151 \pm 0.122$ | $-0.066 \pm 0.161$ | Welch $p = 0.6821$ | Symmetric bilateral recruitment across both cohorts |
 | **Full Spectrum Coherence (0.1 to 3.0 Hz)** | $0.602 \pm 0.054$ | $0.581 \pm 0.040$ | Welch delta $p = 0.0099$ (0.8 to 1.6 Hz $p = 0.0464$) | Aged mice fail to recruit task-evoked bilateral coherence |
 | **Behavioral Social Preference Index (SPI)** | $0.122 \pm 0.240$ | $0.329 \pm 0.195$ | Welch $p = 0.5135$ | Intact chamber preference in both cohorts |
-| **Locomotor Distance (px)** | $30,850 \pm 5,224$ | $34,788 \pm 5,004$ | Welch $p = 0.5939$ | Locomotor confound ruled out |
+| **Locomotor Distance (px)** | $30,850 \pm 5,224$ | $34,788 \pm 5,004$ | Welch $p = 0.5939$ | Locomotion is matched between cohorts |
 
 ---
 
-## Methods Overview
+## Methods summary
 
-* **Motion Correction & Optical QC:** Ordinary least squares regression of 410 nm isosbestic control onto 470 nm fluorescence isolates calcium signals, removing velocity correlation (Young $r = 0.093$ to $0.0002$; Old $r = 0.118$ to $0.0111$; paired drop $p = 0.0020$) with matched session SNR ($32.62 \pm 4.08$ vs $31.09 \pm 4.00$, $p = 0.7927$) and flat 410 nm PETH deflection (Young $-0.0809$, Old $-0.0086$).
-* **Filtering & Resampling:** 2nd-order zero-phase Butterworth low-pass filter (3.0 Hz cutoff) with uniform 10 ms (`np.linspace`) interpolation for zero-millisecond onset drift at $t = 0.000\text{ s}$.
-* **Exact Bout Separation & Duration Normalization:** Exact prefix parsing separates `Non-Social_Start` events cleanly from `Social_Start` bouts, isolating 235 social and 146 object bouts. Continuous trapezoidal integration normalizes whole-bout mean Z across variable bout durations (Young whole-bout correlation with duration $r = 0.003, p = 0.9769$ vs raw AUC $r = 0.161, p = 0.1077$).
-* **Mixed-Effects, Jackknife & Permutation Testing:** Trial-level linear mixed models (`~ Age + Bout + Duration + (1 | Mouse_ID)` across all 235 social trials), Mann-Whitney U, bias-corrected Hedges' $g$, 18-fold leave-one-mouse-out (LOMO) jackknife, and consecutive-threshold PETH permutation windows ($\ge 0.2\text{ s}$ at $p < 0.05$: `-0.23 to +0.03 s`, `+0.53 to +0.83 s`, and `+1.43 to +2.50 s`).
-* **Transients, Selectivity & Behavior:** MAD-thresholded discrete calcium burst rates (total, basal outside bouts, and social-evoked), single-trial `auROC` discrimination, duration stratification ($< 3\text{ s}$ vs $\ge 3\text{ s}$), bout offset disengagement, chamber entry controls ($p = 0.4733$), and zero-lag bilateral cross-correlation ($p = 0.362$).
+* **Motion correction & optical quality:** Linear regression of 410 nm isosbestic control onto 470 nm fluorescence isolates calcium signals, removing velocity correlation (Young $r = 0.093$ to $0.0002$; Old $r = 0.118$ to $0.0111$; paired drop $p = 0.0020$) with matched session SNR ($32.62 \pm 4.08$ vs $31.09 \pm 4.00$, $p = 0.7927$) and flat 410 nm PETH deflection (Young $-0.0809$, Old $-0.0086$).
+* **Filtering & resampling:** Second-order zero-phase Butterworth low-pass filter (3.0 Hz cutoff) with uniform interpolation for exact time alignment at $t = 0.000\text{ s}$.
+* **Bout segmentation & duration normalization:** 235 social sniffing bouts and 146 novel object bouts were extracted from behavioral tracking. Continuous trapezoidal integration normalizes whole-bout mean Z by duration ((1/T) * integral(Z dt)), removing correlation with bout length (Young $r = 0.003, p = 0.9769$ vs raw AUC $r = 0.161, p = 0.1077$).
+* **Mixed-effects, jackknife & permutation testing:** Trial-level linear mixed models (`~ Age + Bout + Duration + (1 | Mouse_ID)` across 235 social trials), Mann-Whitney U, bias-corrected Hedges' $g$, 18-fold leave-one-mouse-out (LOMO) jackknife, and consecutive-threshold PETH permutation windows ($\ge 0.2\text{ s}$ at $p < 0.05$: `-0.23 to +0.03 s`, `+0.53 to +0.83 s`, and `+1.43 to +2.50 s`).
+* **Transients, selectivity & behavior:** MAD-thresholded discrete calcium burst rates (total, basal outside bouts, and social-evoked), single-trial `auROC` discrimination, duration stratification ($< 3\text{ s}$ vs $\ge 3\text{ s}$), bout offset disengagement, chamber entry controls ($p = 0.4733$), and zero-lag bilateral cross-correlation ($p = 0.362$).
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```
 mea-social-photometry/
-├── src/                                  # Core computational modules
-│   ├── io_paths.py                       # Portable raw zip/folder & tracking CSV resolution
-│   ├── preprocessing.py                  # Butterworth filter, 410 nm motion correction, dF/F, Z-score
-│   ├── peth.py                           # Exact prefix bout extraction, PETH slicing, trial metrics, LI
-│   ├── coherence.py                      # Multi-band inter-hemispheric spectral coherence
-│   ├── tracking.py                       # Coordinates, distance, dwell times, SPI, 2D heatmaps
-│   ├── qc.py                             # 410 nm control PETH, bleaching, SNR, speed correlation
-│   ├── transients.py                     # MAD-thresholded spontaneous and evoked calcium burst rates
-│   ├── modeling.py                       # Linear mixed-effects models, LOMO jackknife, PETH windows
-│   ├── behavior_neural.py                # auROC decoding, stratification, offset, zone entry, xcorr
-│   └── visualization.py                  # Publication styles, atomic figure export, individual plots
-├── run_all.py                            # Single-command full analysis pipeline
-├── run_cohort_analysis.py                # Core cohort driver (Figures 1-6, tables, individual folders)
-├── run_extended_analysis.py              # Extended QC, LMM, transients, selectivity (Figures 7-10)
-├── analyze_mouse.py                      # CLI tool to process any single animal
-├── data/
-│   └── README.md                         # Raw photometry & tracking layout instructions
+├── src/                         # Core signal processing, tracking, coherence, and modeling modules
+├── run_all.py                   # Master script to run full pipeline
+├── run_cohort_analysis.py       # Primary cohort analysis and Figures 1 to 6
+├── run_extended_analysis.py     # Extended statistics, QC, and Figures 7 to 10
+├── analyze_mouse.py             # Single animal diagnostic CLI
+├── data/                        # Raw photometry & tracking layout instructions (see data/README.md)
 ├── results/
-│   ├── figures/                          # Figures 1-10 in PNG (300 dpi) and PDF
-│   ├── tables/                           # Master datasets, LMM, LOMO, and statistical reports
-│   ├── cohorts/                          # Young and Old cohort summary plots and tables
-│   └── individual/                       # 18 individual animal folders (6 files per animal)
-├── requirements.txt                      # Python dependencies
-├── LICENSE                               # MIT License
+│   ├── figures/                 # Figures 1 to 10 in PNG (300 dpi) and vector PDF
+│   ├── tables/                  # Master datasets, LMM, LOMO, and summary reports
+│   ├── cohorts/                 # Young and Old cohort summary plots and tables
+│   └── individual/              # Individual animal diagnostic folders (6 files per animal)
+├── requirements.txt             # Python dependencies
+├── LICENSE                      # MIT License
 └── README.md
 ```
 
 ---
 
-## Reproducibility & Usage
+## Setup and usage
 
-### 1. Installation
+Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/sisyyphuss/mea-social-photometry.git
@@ -78,38 +67,29 @@ cd mea-social-photometry
 pip install -r requirements.txt
 ```
 
-### 2. Place Raw Data (Portable Across Computers)
-
-Place `Data_2.zip` (or the extracted `Data_2/` folder) and `results_social/` inside `./data/` or `~/Downloads/`. See [data/README.md](data/README.md) for the exact folder layout, or pass custom paths explicitly via CLI flags (`--raw_zip`, `--tracking_dir`).
-
-### 3. Re-Run the Full Pipeline in One Command
+Place `Data_2.zip` and the `results_social` tracking folder inside `data/` (or keep them in your `Downloads` directory), then run the analysis:
 
 ```bash
 python run_all.py
 ```
 
-Or specify explicit data paths:
+To specify custom data paths or run individual parts separately:
 
 ```bash
-python run_all.py --raw_zip /path/to/Data_2.zip --tracking_dir /path/to/results_social
-```
+# Custom file locations
+python run_all.py --raw_zip path/to/Data_2.zip --tracking_dir path/to/results_social
 
-To run individual steps manually:
-
-```bash
+# Run cohort analysis or extended analysis individually
 python run_cohort_analysis.py
 python run_extended_analysis.py
-```
 
-### 4. Analyze Any Single Animal
-
-```bash
+# Analyze a single mouse
 python analyze_mouse.py --mouse_id 303 --age_group Young
 ```
 
 ---
 
-## Publication Figures
+## Figures
 
 * **Figure 1 | Grand Average MeA Dynamics:** Event-aligned PETH comparison for social sniffing and object exploration ([PNG](results/figures/Figure1_Grand_PETH_Dynamics.png) | [PDF](results/figures/Figure1_Grand_PETH_Dynamics.pdf)).
 * **Figure 2 | Hemispheric Lateralization Index:** Bilateral symmetry distributions during social sniffing ([PNG](results/figures/Figure2_Hemispheric_Lateralization.png) | [PDF](results/figures/Figure2_Hemispheric_Lateralization.pdf)).
